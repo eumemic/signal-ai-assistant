@@ -12,19 +12,20 @@ import {
   sendMessage,
 } from "./signal-api";
 import { sleep } from "./util";
+import { getEnv } from "./env";
 
-dotenv.config();
+main();
 
-main("Jarvis", "+16572017439");
+async function main() {
+  const { openAIApiKey, agentName, agentPhoneNumber } = getEnv();
 
-async function main(agentName: string, agentNumber: string) {
   const groupLookup = new Map<string, SignalGroup>();
 
   while (true) {
     try {
       const [signalGroups, signalEvents] = await Promise.all([
-        getSignalGroups(agentNumber),
-        getSignalEvents(agentNumber),
+        getSignalGroups(agentPhoneNumber),
+        getSignalEvents(agentPhoneNumber),
       ]);
 
       for (const group of signalGroups) {
@@ -74,7 +75,7 @@ async function main(agentName: string, agentNumber: string) {
               .sort((a, b) => a.timestamp - b.timestamp)
               .map(({ sourceNumber, sourceName, content }) => {
                 const message =
-                  sourceNumber === agentNumber
+                  sourceNumber === agentPhoneNumber
                     ? new AIChatMessage(content)
                     : new HumanChatMessage(
                         formatChatMessage(sourceName, content)
@@ -99,6 +100,7 @@ async function main(agentName: string, agentNumber: string) {
           );
 
           const model = new ChatOpenAI({
+            openAIApiKey,
             temperature: 0,
             modelName: "gpt-3.5-turbo",
           });
@@ -123,7 +125,7 @@ async function main(agentName: string, agentNumber: string) {
             timestamp = Date.now();
           } else {
             timestamp = await sendMessage({
-              number: agentNumber,
+              number: agentPhoneNumber,
               recipients: [
                 groupLookup.get(chatId)?.id || chatId,
                 // "group.VHpiT29NL3VDbXJ0Y2R0cmw0Q0pRTUxzbml5UzBvTWd4dXpNVlZPdzE0OD0=",
@@ -138,7 +140,7 @@ async function main(agentName: string, agentNumber: string) {
           }
 
           getMessages(chatId).push({
-            sourceNumber: agentNumber,
+            sourceNumber: agentPhoneNumber,
             sourceName: agentName,
             timestamp,
             content: agentMessage,
