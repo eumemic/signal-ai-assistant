@@ -9,7 +9,7 @@ The Signal AI Assistant project aims to leverage the capabilities of modern LLMs
 ## Prerequisites
 
 - A Signal account and phone number
-- Access to the OpenAI API (https://platform.openai.com/account/api-keys)
+- Access to the OpenAI API
 - Docker (for running the `signal-cli-rest-api`)
 - Node.js
 
@@ -36,7 +36,7 @@ The Signal AI Assistant project aims to leverage the capabilities of modern LLMs
    AGENT_NAME=... # the name attached to your signal account
    AGENT_PHONE_NUMBER=... # the phone number attached to your signal account
    SIGNAL_CLI_REST_API_URL=... # optional, defaults to http://localhost:8080
-   OPENAI_API_KEY=... # your OpenAI API key
+   OPENAI_API_KEY=... # your OpenAI API key (https://platform.openai.com/account/api-keys)
    ```
 
 5. Start the Signal AI Assistant:
