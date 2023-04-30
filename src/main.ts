@@ -71,7 +71,7 @@ async function main(agentName: string, agentNumber: string) {
         [...updatedChats].map(async (chatId) => {
           const chatMessages = [
             new SystemChatMessage(
-              `You are a helpful and friendly assistant named ${agentName}. You are on a first name basis with everyone in the chat. Some of the conversations in the chat do not involve you; if you are not being addressed should respond with exactly this: "${NO_RESPONSE}". It costs money when you respond, so use your best judgement.`
+              `You are a helpful and friendly assistant named ${agentName}. You are on a first name basis with everyone in the chat. You always answer factually to the best of your ability and never make things up. Some of the conversations in the chat do not involve you; if you are not being addressed should respond with exactly this as the entirety of your response: "${NO_RESPONSE}". It costs money when you respond, so use your best judgement.`
             ),
             ...getMessages(chatId)
               .sort((a, b) => a.timestamp - b.timestamp)
