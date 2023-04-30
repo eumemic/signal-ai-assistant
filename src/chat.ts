@@ -74,8 +74,12 @@ ABSOLUTELY DO NOT USE ANY OF THE FOLLOWING PHRASES, or anything similar:
   }
 
   private async processEvents() {
-    const { chatId, group, messages, chain } = this;
+    const { chatId, group, chain } = this;
+
+    // copy array and then zero it out immediately to avoid dropping messages
+    const messages = [...this.messages];
     if (!messages.length) return;
+    this.messages.length = 0;
 
     this.log("Reflecting...");
 
@@ -103,8 +107,6 @@ ABSOLUTELY DO NOT USE ANY OF THE FOLLOWING PHRASES, or anything similar:
         message: response,
       });
     }
-
-    messages.length = 0;
 
     this.log(`Finished after ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   }
