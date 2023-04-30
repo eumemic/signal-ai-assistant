@@ -1,19 +1,7 @@
-import dotenv from "dotenv";
-import { ChatOpenAI } from "langchain/chat_models/openai";
-import {
-  AIChatMessage,
-  HumanChatMessage,
-  SystemChatMessage,
-} from "langchain/schema";
-import {
-  SignalGroup,
-  getSignalEvents,
-  getSignalGroups,
-  sendMessage,
-} from "./signal-api";
-import { sleep } from "./util";
-import { getEnv } from "./env";
 import { Chat } from "./chat";
+import { getEnv } from "./env";
+import { SignalGroup, getSignalEvents, getSignalGroups } from "./signal-api";
+import { sleep } from "./util";
 
 main();
 
