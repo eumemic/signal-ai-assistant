@@ -64,6 +64,8 @@ async function main(agentName: string, agentNumber: string) {
       }
     }
 
+    if (!updatedChats.size) continue;
+
     await Promise.all(
       [...updatedChats].map(async (chatId) => {
         const chatMessages = [
