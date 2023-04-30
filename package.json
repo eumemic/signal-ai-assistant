@@ -1,0 +1,19 @@
+{
+  "name": "jarvis",
+  "version": "0.0.1",
+  "description": "",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/lodash": "^4.14.194",
+    "dotenv": "^16.0.3",
+    "langchain": "^0.0.63",
+    "lodash": "^4.17.21",
+    "node-fetch": "^3.3.1",
+    "typescript": "^5.0.4"
+  }
+}

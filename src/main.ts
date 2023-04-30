@@ -1,0 +1,154 @@
+import dotenv from "dotenv";
+import { ChatOpenAI } from "langchain/chat_models/openai";
+import {
+  AIChatMessage,
+  HumanChatMessage,
+  SystemChatMessage,
+} from "langchain/schema";
+import {
+  SignalGroup,
+  getSignalEvents,
+  getSignalGroups,
+  sendMessage,
+} from "./signal.js";
+import { sleep } from "./util.js";
+import { Calculator } from "langchain/tools/calculator";
+import { SerpAPI } from "langchain/tools";
+import { initializeAgentExecutorWithOptions } from "langchain/agents";
+
+dotenv.config();
+
+main("Jarvis", "+16572017439");
+
+async function main(agentName: string, agentNumber: string) {
+  const model = new ChatOpenAI({ temperature: 0 });
+
+  const groupLookup = new Map<string, SignalGroup>();
+
+  while (true) {
+    const [signalGroups, signalEvents] = await Promise.all([
+      getSignalGroups(agentNumber),
+      getSignalEvents(agentNumber),
+    ]);
+
+    for (const group of signalGroups) {
+      if (groupLookup.has(group.internal_id)) continue;
+
+      console.log(`Added to group ${group.name}`);
+      groupLookup.set(group.internal_id, group);
+    }
+
+    // const groupLookup = keyBy(signalGroups, (group) => group.internal_id);
+
+    // if (signalEvents.length) console.log(JSON.stringify(signalEvents, null, 2));
+
+    const updatedChats = new Set<string>();
+
+    for (const { envelope } of signalEvents) {
+      const { sourceNumber, sourceName, dataMessage, timestamp } = envelope;
+      if (dataMessage) {
+        if (dataMessage.message === null) {
+          // console.warn(
+          //   `Null message in envelope:\n${JSON.stringify(envelope, null, 2)}`
+          // );
+          continue;
+        }
+
+        const chatId = dataMessage.groupInfo?.groupId || sourceNumber;
+        updatedChats.add(chatId);
+
+        getMessages(chatId).push({
+          sourceNumber,
+          sourceName,
+          timestamp,
+          content: dataMessage.message ?? "",
+        });
+      }
+    }
+
+    await Promise.all(
+      [...updatedChats].map(async (chatId) => {
+        const chatMessages = [
+          new SystemChatMessage(
+            `You are a helpful and friendly assistant named ${agentName}. You are on a first name basis with everyone in the chat. You don't always have to respond; in that case simply say exactly this: "${NO_RESPONSE}". You should respond only if you think someone is addressing you, or if you have something interesting to add, but otherwise say "${NO_RESPONSE}". It costs money when you respond, so use your best judgement. If someone chides you for responding when you shouldn't have, you should briefly acknowledge that message.`
+          ),
+          ...getMessages(chatId)
+            .sort((a, b) => a.timestamp - b.timestamp)
+            .map(({ sourceNumber, sourceName, content }) => {
+              const message =
+                sourceNumber === agentNumber
+                  ? new AIChatMessage(content)
+                  : new HumanChatMessage(
+                      formatChatMessage(sourceName, content)
+                    );
+              // message.name = sourceNumber;
+              return message;
+            }),
+          // new HumanChatMessage(formatChatMessage(agentName)),
+        ];
+
+        console.log(
+          `\n${chatId}\n===\n`,
+          JSON.stringify(
+            chatMessages.map((msg) => ({
+              source: msg.name,
+              message: msg.text,
+            })),
+            null,
+            2
+          ),
+          "\n==="
+        );
+
+        const { text: agentMessage } = await model.call(chatMessages);
+
+        let timestamp: number | undefined;
+        if (agentMessage === NO_RESPONSE) {
+          console.log("No response.");
+          timestamp = Date.now();
+        } else {
+          timestamp = await sendMessage({
+            number: agentNumber,
+            recipients: [
+              groupLookup.get(chatId)?.id || chatId,
+              // "group.VHpiT29NL3VDbXJ0Y2R0cmw0Q0pRTUxzbml5UzBvTWd4dXpNVlZPdzE0OD0=",
+            ],
+            message: agentMessage,
+          });
+        }
+
+        if (timestamp === undefined) return;
+
+        getMessages(chatId).push({
+          sourceNumber: agentNumber,
+          sourceName: agentName,
+          timestamp,
+          content: agentMessage,
+        });
+      })
+    );
+
+    await sleep(5000);
+  }
+}
+
+interface Message {
+  sourceNumber: string;
+  sourceName: string;
+  timestamp: number;
+  content: string;
+}
+
+const chats = new Map<string, Message[]>();
+
+function getMessages(chatId: string) {
+  let messages = chats.get(chatId);
+  if (!messages) chats.set(chatId, (messages = []));
+  return messages;
+}
+
+function formatChatMessage(sourceName: string, content = "") {
+  return `FROM: ${sourceName}\nMESSAGE: ${content}`;
+}
+
+const NO_RESPONSE = "%__NO_RESPONSE__%";
