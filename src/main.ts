@@ -21,8 +21,6 @@ dotenv.config();
 main("Jarvis", "+16572017439");
 
 async function main(agentName: string, agentNumber: string) {
-  const model = new ChatOpenAI({ temperature: 0 });
-
   const groupLookup = new Map<string, SignalGroup>();
 
   while (true) {
@@ -100,7 +98,21 @@ async function main(agentName: string, agentNumber: string) {
           "\n==="
         );
 
-        const { text: agentMessage } = await model.call(chatMessages);
+        const model = new ChatOpenAI({ temperature: 0 });
+
+        console.log(`[${chatId}] Thinking...`);
+
+        let agentMessage: string;
+
+        try {
+          const response = await model.call(chatMessages);
+          agentMessage = response.text;
+        } catch (e) {
+          console.error("Error while consulting LLM", e);
+          return;
+        }
+
+        console.log(`[${chatId}] Decided on message`);
 
         let timestamp: number | undefined;
         if (agentMessage === NO_RESPONSE) {
@@ -117,7 +129,10 @@ async function main(agentName: string, agentNumber: string) {
           });
         }
 
-        if (timestamp === undefined) return;
+        if (!timestamp) {
+          console.log(`[${chatId}] No timestamp receieved`);
+          return;
+        }
 
         getMessages(chatId).push({
           sourceNumber: agentNumber,
@@ -125,6 +140,8 @@ async function main(agentName: string, agentNumber: string) {
           timestamp,
           content: agentMessage,
         });
+
+        console.log(`[${chatId}] Responded`);
       })
     );
 
