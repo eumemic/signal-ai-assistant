@@ -24,7 +24,7 @@ export class Chat {
 
   start() {
     this.log("Starting");
-    this.taskQueue.runPeriodically(() => this.processEvents(), 1000);
+    this.taskQueue.runPeriodically(this.processEvents.bind(this), 1000);
   }
 
   addEvent({ envelope }: SignalEvent) {

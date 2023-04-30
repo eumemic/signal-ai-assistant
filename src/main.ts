@@ -51,7 +51,7 @@ async function main() {
         chat.addEvent(event);
       }
     } finally {
-      await sleep(5000);
+      await sleep(1000);
     }
   }
 }
