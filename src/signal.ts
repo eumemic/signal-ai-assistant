@@ -22,6 +22,9 @@ export interface SignalDataMessage {
   expiresInSeconds: number;
   viewOnce: boolean;
   mentions?: SignalMention[];
+  quote?: SignalQuote;
+  reaction?: SignalReaction;
+  previews?: SignalPreview[];
   groupInfo?: SignalGroupMessageInfo;
 }
 
@@ -39,6 +42,36 @@ export interface SignalMention {
   uuid: string;
   start: number;
   length: number;
+}
+
+export interface SignalReaction {
+  emoji: string;
+  targetAuthor: string;
+  targetAuthorNumber: string;
+  targetAuthorUuid: string;
+  targetSentTimestamp: number;
+  isRemove: boolean;
+}
+
+export interface SignalQuote {
+  id: number;
+  author: string;
+  authorNumber: string;
+  authorUuid: string;
+  text: string;
+  attachments: [];
+}
+
+export interface SignalPreview {
+  url: string;
+  title: string;
+  description: string;
+  image: {
+    contentType: string;
+    filename: string | null;
+    id: string;
+    size: number;
+  };
 }
 
 export interface SignalGroupMessageInfo {
