@@ -9,7 +9,12 @@ import {
 } from "langchain/prompts";
 import { last } from "lodash";
 import { getEnv } from "./env";
-import { SignalEvent, SignalGroup, sendMessage } from "./signal-api";
+import {
+  SignalEvent,
+  SignalGroup,
+  SignalMention,
+  sendMessage,
+} from "./signal-api";
 import TaskQueue from "./task-queue";
 
 const { openAIApiKey, agentName, agentPhoneNumber } = getEnv();
@@ -22,7 +27,7 @@ export class Chat {
     prompt: ChatPromptTemplate.fromPromptMessages([
       SystemMessagePromptTemplate.fromTemplate(
         `
-You are an assistant named ${agentName}. You are on a first name basis with everyone in the chat. You should adapt your tone and formality to that of the other participants in the chat. Some of the conversations in the chat do not involve you; if you are not being addressed should respond with exactly this as the entirety of your response: "${NO_RESPONSE}". It costs money when you respond, so use your best judgement.
+You are an assistant named ${agentName}. You are on a first name basis with everyone in the chat. You should adapt your tone and formality to that of the other participants in the chat.
 
 ABSOLUTELY DO NOT USE ANY OF THE FOLLOWING PHRASES, or anything similar:
 "Is there anything else I can assist you with?"
@@ -32,7 +37,10 @@ ABSOLUTELY DO NOT USE ANY OF THE FOLLOWING PHRASES, or anything similar:
 `.trim()
       ),
       new MessagesPlaceholder("history"),
-      HumanMessagePromptTemplate.fromTemplate("{input}"),
+      HumanMessagePromptTemplate.fromTemplate("CHAT EXCERPT:\n\n{input}"),
+      HumanMessagePromptTemplate.fromTemplate(
+        `Now give your response to the last chat excerpt. Don't prefix it with "FROM:", just provide the text of your response`
+      ),
     ]),
     llm: new ChatOpenAI({
       openAIApiKey: openAIApiKey,
@@ -70,10 +78,9 @@ ABSOLUTELY DO NOT USE ANY OF THE FOLLOWING PHRASES, or anything similar:
       for (const { start, length, name, number } of mentions) {
         content =
           content.substring(0, start) +
-          `@{${this.phoneNumberToName.get(number) || name}}` +
+          formatMention(this.phoneNumberToName.get(number) || name) +
           content.substring(start + length);
       }
-      console.log({ mentions, group, content });
     }
     const lastMessage = last(this.messages);
     if (lastMessage && lastMessage.sourceNumber === sourceNumber) {
@@ -91,37 +98,40 @@ ABSOLUTELY DO NOT USE ANY OF THE FOLLOWING PHRASES, or anything similar:
   private async processEvents() {
     const { chatId, group, chain } = this;
 
-    // copy array and then zero it out immediately to avoid dropping messages
-    const messages = [...this.messages];
-    if (!messages.length) return;
-    this.messages.length = 0;
+    let numMessagesToSend: number;
+    if (this.group) {
+      numMessagesToSend = 0;
+      for (let i = this.messages.length - 1; i >= 0; i--) {
+        if (this.messages[i].content.includes(formatMention(agentName))) {
+          numMessagesToSend = i + 1;
+          break;
+        }
+      }
+    } else {
+      numMessagesToSend = this.messages.length;
+    }
+    if (numMessagesToSend === 0) return;
+
+    const input = this.messages
+      .splice(0, numMessagesToSend)
+      .map(({ sourceName, content }) => `FROM: ${sourceName}\n---\n${content}`)
+      .join("\n\n");
 
     this.log("Reflecting...");
 
     const t0 = Date.now();
 
-    const responses = (await chain.apply(
-      messages.map(({ sourceName, content }) => ({
-        input: `FROM: ${sourceName}\n---\n${content}`,
-      }))
-    )) as { response: string }[];
+    const { response } = await chain.call({ input });
 
     // this.log("memory", (chain.memory as any).chatHistory.messages);
 
-    for (const { response } of responses) {
-      if (response === NO_RESPONSE) {
-        this.log("Chose not to respond");
-        continue;
-      }
+    this.log("Responding...");
 
-      this.log("Responding...");
-
-      await sendMessage({
-        number: agentPhoneNumber,
-        recipients: [group?.id || chatId],
-        message: response,
-      });
-    }
+    await sendMessage({
+      number: agentPhoneNumber,
+      recipients: [group?.id || chatId],
+      message: response,
+    });
 
     this.log(`Finished after ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   }
@@ -138,4 +148,6 @@ interface Message {
   content: string;
 }
 
-const NO_RESPONSE = "%__NO_RESPONSE__%";
+function formatMention(name: string) {
+  return `@{${name}}`;
+}
