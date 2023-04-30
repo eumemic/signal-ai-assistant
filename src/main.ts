@@ -24,133 +24,135 @@ async function main(agentName: string, agentNumber: string) {
   const groupLookup = new Map<string, SignalGroup>();
 
   while (true) {
-    const [signalGroups, signalEvents] = await Promise.all([
-      getSignalGroups(agentNumber),
-      getSignalEvents(agentNumber),
-    ]);
+    try {
+      const [signalGroups, signalEvents] = await Promise.all([
+        getSignalGroups(agentNumber),
+        getSignalEvents(agentNumber),
+      ]);
 
-    for (const group of signalGroups) {
-      if (groupLookup.has(group.internal_id)) continue;
+      for (const group of signalGroups) {
+        if (groupLookup.has(group.internal_id)) continue;
 
-      console.log(`Added to group ${group.name}`);
-      groupLookup.set(group.internal_id, group);
-    }
-
-    // const groupLookup = keyBy(signalGroups, (group) => group.internal_id);
-
-    // if (signalEvents.length) console.log(JSON.stringify(signalEvents, null, 2));
-
-    const updatedChats = new Set<string>();
-
-    for (const { envelope } of signalEvents) {
-      const { sourceNumber, sourceName, dataMessage, timestamp } = envelope;
-      if (dataMessage) {
-        if (dataMessage.message === null) {
-          // console.warn(
-          //   `Null message in envelope:\n${JSON.stringify(envelope, null, 2)}`
-          // );
-          continue;
-        }
-
-        const chatId = dataMessage.groupInfo?.groupId || sourceNumber;
-        updatedChats.add(chatId);
-
-        getMessages(chatId).push({
-          sourceNumber,
-          sourceName,
-          timestamp,
-          content: dataMessage.message ?? "",
-        });
+        console.log(`Added to group ${group.name}`);
+        groupLookup.set(group.internal_id, group);
       }
-    }
 
-    if (!updatedChats.size) continue;
+      // const groupLookup = keyBy(signalGroups, (group) => group.internal_id);
 
-    await Promise.all(
-      [...updatedChats].map(async (chatId) => {
-        const chatMessages = [
-          new SystemChatMessage(
-            `You are a helpful and friendly assistant named ${agentName}. You are on a first name basis with everyone in the chat. Some of the conversations in the chat do not involve you; if you are not being addressed should respond with exactly this: "${NO_RESPONSE}". It costs money when you respond, so use your best judgement.`
-          ),
-          ...getMessages(chatId)
-            .sort((a, b) => a.timestamp - b.timestamp)
-            .map(({ sourceNumber, sourceName, content }) => {
-              const message =
-                sourceNumber === agentNumber
-                  ? new AIChatMessage(content)
-                  : new HumanChatMessage(
-                      formatChatMessage(sourceName, content)
-                    );
-              // message.name = sourceNumber;
-              return message;
-            }),
-          // new HumanChatMessage(formatChatMessage(agentName)),
-        ];
+      // if (signalEvents.length) console.log(JSON.stringify(signalEvents, null, 2));
 
-        console.log(
-          `\n${chatId}\n===\n`,
-          JSON.stringify(
-            chatMessages.map((msg) => ({
-              source: msg.name,
-              message: msg.text,
-            })),
-            null,
-            2
-          ),
-          "\n==="
-        );
+      const updatedChats = new Set<string>();
 
-        const model = new ChatOpenAI({
-          temperature: 0,
-          modelName: "gpt-3.5-turbo",
-        });
+      for (const { envelope } of signalEvents) {
+        const { sourceNumber, sourceName, dataMessage, timestamp } = envelope;
+        if (dataMessage) {
+          if (dataMessage.message === null) {
+            // console.warn(
+            //   `Null message in envelope:\n${JSON.stringify(envelope, null, 2)}`
+            // );
+            continue;
+          }
 
-        console.log(`[${chatId}] Thinking...`);
+          const chatId = dataMessage.groupInfo?.groupId || sourceNumber;
+          updatedChats.add(chatId);
 
-        let agentMessage: string;
-
-        try {
-          const response = await model.call(chatMessages);
-          agentMessage = response.text;
-        } catch (e) {
-          console.error("Error while consulting LLM", e);
-          return;
-        }
-
-        console.log(`[${chatId}] Decided on message`);
-
-        let timestamp: number | undefined;
-        if (agentMessage === NO_RESPONSE) {
-          console.log("No response.");
-          timestamp = Date.now();
-        } else {
-          timestamp = await sendMessage({
-            number: agentNumber,
-            recipients: [
-              groupLookup.get(chatId)?.id || chatId,
-              // "group.VHpiT29NL3VDbXJ0Y2R0cmw0Q0pRTUxzbml5UzBvTWd4dXpNVlZPdzE0OD0=",
-            ],
-            message: agentMessage,
+          getMessages(chatId).push({
+            sourceNumber,
+            sourceName,
+            timestamp,
+            content: dataMessage.message ?? "",
           });
         }
+      }
 
-        if (!timestamp) {
-          console.log(`[${chatId}] No timestamp receieved`);
-          return;
-        }
+      if (!updatedChats.size) continue;
 
-        getMessages(chatId).push({
-          sourceNumber: agentNumber,
-          sourceName: agentName,
-          timestamp,
-          content: agentMessage,
-        });
+      await Promise.all(
+        [...updatedChats].map(async (chatId) => {
+          const chatMessages = [
+            new SystemChatMessage(
+              `You are a helpful and friendly assistant named ${agentName}. You are on a first name basis with everyone in the chat. Some of the conversations in the chat do not involve you; if you are not being addressed should respond with exactly this: "${NO_RESPONSE}". It costs money when you respond, so use your best judgement.`
+            ),
+            ...getMessages(chatId)
+              .sort((a, b) => a.timestamp - b.timestamp)
+              .map(({ sourceNumber, sourceName, content }) => {
+                const message =
+                  sourceNumber === agentNumber
+                    ? new AIChatMessage(content)
+                    : new HumanChatMessage(
+                        formatChatMessage(sourceName, content)
+                      );
+                // message.name = sourceNumber;
+                return message;
+              }),
+            // new HumanChatMessage(formatChatMessage(agentName)),
+          ];
 
-        console.log(`[${chatId}] Responded`);
-      })
-    );
+          console.log(
+            `\n${chatId}\n===\n`,
+            JSON.stringify(
+              chatMessages.map((msg) => ({
+                source: msg.name,
+                message: msg.text,
+              })),
+              null,
+              2
+            ),
+            "\n==="
+          );
 
-    await sleep(5000);
+          const model = new ChatOpenAI({
+            temperature: 0,
+            modelName: "gpt-3.5-turbo",
+          });
+
+          console.log(`[${chatId}] Thinking...`);
+
+          let agentMessage: string;
+
+          try {
+            const response = await model.call(chatMessages);
+            agentMessage = response.text;
+          } catch (e) {
+            console.error("Error while consulting LLM", e);
+            return;
+          }
+
+          console.log(`[${chatId}] Decided on message`);
+
+          let timestamp: number | undefined;
+          if (agentMessage === NO_RESPONSE) {
+            console.log("No response.");
+            timestamp = Date.now();
+          } else {
+            timestamp = await sendMessage({
+              number: agentNumber,
+              recipients: [
+                groupLookup.get(chatId)?.id || chatId,
+                // "group.VHpiT29NL3VDbXJ0Y2R0cmw0Q0pRTUxzbml5UzBvTWd4dXpNVlZPdzE0OD0=",
+              ],
+              message: agentMessage,
+            });
+          }
+
+          if (!timestamp) {
+            console.log(`[${chatId}] No timestamp receieved`);
+            return;
+          }
+
+          getMessages(chatId).push({
+            sourceNumber: agentNumber,
+            sourceName: agentName,
+            timestamp,
+            content: agentMessage,
+          });
+
+          console.log(`[${chatId}] Responded`);
+        })
+      );
+    } finally {
+      await sleep(5000);
+    }
   }
 }
 
