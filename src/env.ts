@@ -3,10 +3,10 @@ import dotenv from "dotenv";
 dotenv.config();
 
 interface Env {
-  openAIApiKey: string;
-  serpApiApiKey?: string;
   agentName: string;
   agentPhoneNumber: string;
+  signalCliRestApiUrl: string;
+  openAIApiKey: string;
 }
 
 let env: Env | undefined;
@@ -15,10 +15,11 @@ export function getEnv(): Env {
   if (env) return env;
 
   env = {
-    openAIApiKey: required("OPENAI_API_KEY"),
-    serpApiApiKey: optional("SERPAPI_API_KEY"),
     agentName: optional("AGENT_NAME") || "Jarvis",
     agentPhoneNumber: required("AGENT_PHONE_NUMBER"),
+    signalCliRestApiUrl:
+      optional("SIGNAL_CLI_REST_API_URL") || "http://localhost:8080",
+    openAIApiKey: required("OPENAI_API_KEY"),
   };
 
   return env;

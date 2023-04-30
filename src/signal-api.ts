@@ -1,4 +1,5 @@
 import fetch from "node-fetch";
+import { getEnv } from "./env";
 
 export interface SignalEvent {
   envelope: SignalEnvelope;
@@ -97,14 +98,19 @@ export interface SignalGroup {
   admins: string[];
 }
 
+const { signalCliRestApiUrl } = getEnv();
+
 export async function getSignalEvents(number: string): Promise<SignalEvent[]> {
   try {
-    const response = await fetch(`http://localhost:8080/v1/receive/${number}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const response = await fetch(
+      `${signalCliRestApiUrl}/v1/receive/${number}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
@@ -122,7 +128,7 @@ export async function sendMessage(
 ): Promise<number | undefined> {
   // console.log("sendMessage", message);
   try {
-    const response = await fetch("http://localhost:8080/v2/send", {
+    const response = await fetch(`${signalCliRestApiUrl}/v2/send`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -144,7 +150,7 @@ export async function sendMessage(
 
 export async function getSignalGroups(number: string): Promise<SignalGroup[]> {
   try {
-    const response = await fetch(`http://localhost:8080/v1/groups/${number}`, {
+    const response = await fetch(`${signalCliRestApiUrl}/v1/groups/${number}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
