@@ -15,7 +15,7 @@ export function getEnv(): Env {
   if (env) return env;
 
   env = {
-    agentName: optional("AGENT_NAME") || "Jarvis",
+    agentName: required("AGENT_NAME"),
     agentPhoneNumber: required("AGENT_PHONE_NUMBER"),
     signalCliRestApiUrl:
       optional("SIGNAL_CLI_REST_API_URL") || "http://localhost:8080",
