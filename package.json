@@ -1,5 +1,5 @@
 {
-  "name": "signal-assistant",
+  "name": "signal-ai-assistant",
   "version": "0.0.1",
   "description": "An LLM-powered Signal assistant",
   "main": "src/main.ts",
