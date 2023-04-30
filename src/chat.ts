@@ -23,8 +23,8 @@ export class Chat {
   }
 
   start() {
+    this.log("Starting");
     this.taskQueue.runPeriodically(() => this.processEvents(), 1000);
-    return this;
   }
 
   addEvent({ envelope }: SignalEvent) {

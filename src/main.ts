@@ -43,7 +43,9 @@ async function main() {
         let chat = chats.get(chatId);
         if (!chat) {
           const group = groupLookup.get(chatId);
-          chats.set(chatId, (chat = new Chat(chatId, group).start()));
+          chat = new Chat(chatId, group);
+          chat.start();
+          chats.set(chatId, chat);
         }
 
         chat.addEvent(event);
