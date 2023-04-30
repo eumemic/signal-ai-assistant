@@ -1,6 +1,6 @@
 # Signal AI Assistant
 
-Signal AI Assistant integrates with large language models (LLMs) using [LangChainJS](https://github.com/hwchase17/langchainjs) and the [signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) project to create an AI-powered personal assistant within the Signal messaging app.
+Signal AI Assistant integrates with large language models (LLMs) using [LangChain.js](https://github.com/hwchase17/langchainjs) and the [signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) project to create an AI-powered personal assistant within the Signal messaging app.
 
 ## Overview
 
