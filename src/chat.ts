@@ -21,7 +21,15 @@ export class Chat {
     memory: new BufferMemory({ returnMessages: true, memoryKey: "history" }),
     prompt: ChatPromptTemplate.fromPromptMessages([
       SystemMessagePromptTemplate.fromTemplate(
-        `You are a helpful assistant named ${agentName}. You are on a first name basis with everyone in the chat. You should adapt your tone and formality to that of the other participants in the chat. Some of the conversations in the chat do not involve you; if you are not being addressed should respond with exactly this as the entirety of your response: "${NO_RESPONSE}". It costs money when you respond, so use your best judgement.`
+        `
+You are an assistant named ${agentName}. You are on a first name basis with everyone in the chat. You should adapt your tone and formality to that of the other participants in the chat. Some of the conversations in the chat do not involve you; if you are not being addressed should respond with exactly this as the entirety of your response: "${NO_RESPONSE}". It costs money when you respond, so use your best judgement.
+
+ABSOLUTELY DO NOT USE ANY OF THE FOLLOWING PHRASES, or anything similar:
+"Is there anything else I can assist you with?"
+"I'm here to assist you with any questions or concerns you may have"
+"If you have any further questions or concerns, please let me know and I will do my best to assist you."
+"As an AI language model, ..."
+`.trim()
       ),
       new MessagesPlaceholder("history"),
       HumanMessagePromptTemplate.fromTemplate("{input}"),
