@@ -10,7 +10,7 @@ import {
   getSignalEvents,
   getSignalGroups,
   sendMessage,
-} from "./signal";
+} from "./signal-api";
 import { sleep } from "./util";
 
 dotenv.config();
