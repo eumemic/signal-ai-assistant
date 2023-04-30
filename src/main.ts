@@ -10,8 +10,8 @@ import {
   getSignalEvents,
   getSignalGroups,
   sendMessage,
-} from "./signal.js";
-import { sleep } from "./util.js";
+} from "./signal";
+import { sleep } from "./util";
 import { Calculator } from "langchain/tools/calculator";
 import { SerpAPI } from "langchain/tools";
 import { initializeAgentExecutorWithOptions } from "langchain/agents";
