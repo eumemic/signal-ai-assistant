@@ -98,7 +98,10 @@ async function main(agentName: string, agentNumber: string) {
           "\n==="
         );
 
-        const model = new ChatOpenAI({ temperature: 0 });
+        const model = new ChatOpenAI({
+          temperature: 0,
+          modelName: "gpt-3.5-turbo",
+        });
 
         console.log(`[${chatId}] Thinking...`);
 
