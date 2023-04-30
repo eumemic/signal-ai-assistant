@@ -83,7 +83,9 @@ export class Chat {
       modelName: "gpt-3.5-turbo",
     });
 
-    this.log(`Thinking...`);
+    this.log(`Reflecting on ${chatMessages.length} messages...`);
+
+    const t0 = Date.now();
 
     let agentMessage: string;
 
@@ -95,7 +97,7 @@ export class Chat {
       return;
     }
 
-    this.log(`Decided`);
+    this.log(`Decided after ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 
     let timestamp: number | undefined;
     if (agentMessage === NO_RESPONSE) {
