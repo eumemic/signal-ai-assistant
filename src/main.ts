@@ -68,7 +68,7 @@ async function main(agentName: string, agentNumber: string) {
       [...updatedChats].map(async (chatId) => {
         const chatMessages = [
           new SystemChatMessage(
-            `You are a helpful and friendly assistant named ${agentName}. You are on a first name basis with everyone in the chat. You don't always have to respond; in that case simply say exactly this: "${NO_RESPONSE}". You should respond only if you think someone is addressing you, or if you have something interesting to add, but otherwise say "${NO_RESPONSE}". It costs money when you respond, so use your best judgement. If someone chides you for responding when you shouldn't have, you should briefly acknowledge that message.`
+            `You are a helpful and friendly assistant named ${agentName}. You are on a first name basis with everyone in the chat. Some of the conversations in the chat do not involve you; if you are not being addressed should respond with exactly this: "${NO_RESPONSE}". It costs money when you respond, so use your best judgement.`
           ),
           ...getMessages(chatId)
             .sort((a, b) => a.timestamp - b.timestamp)
