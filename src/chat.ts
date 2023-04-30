@@ -41,8 +41,11 @@ ABSOLUTELY DO NOT USE ANY OF THE FOLLOWING PHRASES, or anything similar:
       // modelName: "gpt-4",
     }),
   });
+  private phoneNumberToName = new Map<string, string>();
 
-  constructor(private chatId: string, private group?: SignalGroup) {}
+  constructor(private chatId: string, private group?: SignalGroup) {
+    this.phoneNumberToName.set(agentPhoneNumber, agentName);
+  }
 
   static getId({ envelope }: SignalEvent): string | undefined {
     2;
@@ -57,9 +60,21 @@ ABSOLUTELY DO NOT USE ANY OF THE FOLLOWING PHRASES, or anything similar:
   }
 
   addEvent({
-    envelope: { sourceNumber, sourceName, dataMessage, timestamp },
+    envelope: { sourceNumber, sourceName, timestamp, dataMessage },
   }: SignalEvent) {
-    const content = dataMessage!.message!;
+    this.phoneNumberToName.set(sourceNumber, sourceName);
+    const { message, mentions } = dataMessage!;
+    let content = message!;
+    if (mentions) {
+      const group = this.group!;
+      for (const { start, length, name, number } of mentions) {
+        content =
+          content.substring(0, start) +
+          `@{${this.phoneNumberToName.get(number) || name}}` +
+          content.substring(start + length);
+      }
+      console.log({ mentions, group, content });
+    }
     const lastMessage = last(this.messages);
     if (lastMessage && lastMessage.sourceNumber === sourceNumber) {
       lastMessage.content += `\n${content}`;
