@@ -3,7 +3,7 @@ type Task<T = void> = () => Promise<T>;
 export default class TaskQueue {
   private tasks: Task[] = [];
   private running: Promise<void> | undefined;
-  private intervals: NodeJS.Timer[] = [];
+  private intervals: NodeJS.Timeout[] = [];
 
   get length() {
     return this.tasks.length;

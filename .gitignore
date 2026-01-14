@@ -1,3 +1,6 @@
 node_modules
 dist
 .env
+
+# Signal CLI config (contains account keys)
+signal-cli-config/

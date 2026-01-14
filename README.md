@@ -11,7 +11,7 @@ The Signal AI Assistant project aims to leverage the capabilities of modern LLMs
 - A Signal account and phone number
 - Access to the OpenAI API
 - Docker (for running the `signal-cli-rest-api`)
-- Node.js
+- Node.js 20+ (recommended)
 
 ## Installation
 
@@ -37,13 +37,25 @@ The Signal AI Assistant project aims to leverage the capabilities of modern LLMs
    AGENT_PHONE_NUMBER=... # the phone number attached to your signal account
    SIGNAL_CLI_REST_API_URL=... # optional, defaults to http://localhost:8080
    OPENAI_API_KEY=... # your OpenAI API key (https://platform.openai.com/account/api-keys)
+   OPENAI_MODEL=... # optional, defaults to gpt-3.5-turbo. e.g. gpt-4o-mini
    ```
 
-5. Start the Signal AI Assistant:
+5. Build and start the Signal AI Assistant:
 
    ```
+   npm run build
    npm start
+   # Or run directly with ts-node during development:
+   npm run dev
    ```
+
+## Testing
+
+Unit tests use Vitest:
+
+```
+npm test
+```
 
 ## Usage
 

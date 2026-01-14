@@ -7,6 +7,7 @@ interface Env {
   agentPhoneNumber: string;
   signalCliRestApiUrl: string;
   openAIApiKey: string;
+  openAIModel: string;
 }
 
 let env: Env | undefined;
@@ -20,6 +21,7 @@ export function getEnv(): Env {
     signalCliRestApiUrl:
       optional("SIGNAL_CLI_REST_API_URL") || "http://localhost:8080",
     openAIApiKey: required("OPENAI_API_KEY"),
+    openAIModel: optional("OPENAI_MODEL") || "gpt-3.5-turbo",
   };
 
   return env;

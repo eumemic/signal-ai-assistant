@@ -4,21 +4,26 @@
   "description": "An LLM-powered Signal assistant",
   "main": "src/main.ts",
   "scripts": {
-    "start": "ts-node src/main.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "ts-node src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "test": "vitest run"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@types/lodash": "^4.14.194",
-    "@types/node-fetch": "^2.6.3",
     "dotenv": "^16.0.3",
     "langchain": "^0.0.64",
     "lodash": "^4.17.21",
-    "node-fetch": "^2.6.7",
     "typescript": "^5.0.4"
   },
   "devDependencies": {
-    "ts-node": "^10.9.1"
+    "@types/lodash": "^4.14.194",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.1",
+    "vitest": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

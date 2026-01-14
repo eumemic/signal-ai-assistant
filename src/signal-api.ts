@@ -1,4 +1,3 @@
-import fetch from "node-fetch";
 import { getEnv } from "./env";
 
 export interface SignalEvent {

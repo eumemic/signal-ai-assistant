@@ -17,7 +17,7 @@ import {
 } from "./signal-api";
 import TaskQueue from "./task-queue";
 
-const { openAIApiKey, agentName, agentPhoneNumber } = getEnv();
+const { openAIApiKey, agentName, agentPhoneNumber, openAIModel } = getEnv();
 
 export class Chat {
   private taskQueue = new TaskQueue();
@@ -45,8 +45,7 @@ ABSOLUTELY DO NOT USE ANY OF THE FOLLOWING PHRASES, or anything similar:
     llm: new ChatOpenAI({
       openAIApiKey: openAIApiKey,
       temperature: 0,
-      modelName: "gpt-3.5-turbo",
-      // modelName: "gpt-4",
+      modelName: openAIModel,
     }),
   });
   private phoneNumberToName = new Map<string, string>();
@@ -56,7 +55,6 @@ ABSOLUTELY DO NOT USE ANY OF THE FOLLOWING PHRASES, or anything similar:
   }
 
   static getId({ envelope }: SignalEvent): string | undefined {
-    2;
     const { sourceNumber, sourceName, dataMessage, timestamp } = envelope;
     if (!dataMessage || !dataMessage.message) return;
     return dataMessage.groupInfo?.groupId || sourceNumber;

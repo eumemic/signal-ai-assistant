@@ -1,0 +1,11 @@
+services:
+  signal-cli-rest-api:
+    image: bbernhard/signal-cli-rest-api:latest
+    container_name: signal-cli-rest-api
+    restart: unless-stopped
+    environment:
+      - MODE=native
+    ports:
+      - "8080:8080"
+    volumes:
+      - "./signal-cli-config:/home/.local/share/signal-cli"
