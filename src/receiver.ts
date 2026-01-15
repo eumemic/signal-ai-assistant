@@ -209,6 +209,10 @@ export function createReceiver(options: ReceiverOptions): ReceiverHandle {
       try {
         const json = JSON.parse(line)
         if (json.envelope) {
+          // Filter out self-messages (messages from the agent itself)
+          if (json.envelope.source === agentPhoneNumber) {
+            continue
+          }
           const parsed = parseSignalMessage(json.envelope)
           if (parsed) {
             onMessage(parsed)

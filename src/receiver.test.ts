@@ -492,4 +492,85 @@ describe('createReceiver', () => {
     stdoutCallback(Buffer.from(receiptJson + '\n'))
     expect(onMessage).not.toHaveBeenCalled()
   })
+
+  it('filters out self-messages (source === agentPhoneNumber)', () => {
+    const onMessage = vi.fn()
+    const options: ReceiverOptions = {
+      agentPhoneNumber: '+1555123456',
+      onMessage,
+    }
+
+    createReceiver(options)
+
+    // Message from the agent itself (self-message)
+    const selfMessageJson = JSON.stringify({
+      envelope: {
+        source: '+1555123456', // Same as agentPhoneNumber
+        sourceNumber: '+1555123456',
+        sourceName: 'Jarvis',
+        timestamp: 1705312245123,
+        dataMessage: {
+          message: 'Hello from me!',
+        },
+      },
+    })
+
+    stdoutCallback(Buffer.from(selfMessageJson + '\n'))
+    expect(onMessage).not.toHaveBeenCalled()
+  })
+
+  it('does not filter messages from other users', () => {
+    const onMessage = vi.fn()
+    const options: ReceiverOptions = {
+      agentPhoneNumber: '+1555123456',
+      onMessage,
+    }
+
+    createReceiver(options)
+
+    // Message from a different user
+    const otherUserJson = JSON.stringify({
+      envelope: {
+        source: '+1234567890', // Different from agentPhoneNumber
+        sourceNumber: '+1234567890',
+        sourceName: 'Tom',
+        timestamp: 1705312245123,
+        dataMessage: {
+          message: 'Hello!',
+        },
+      },
+    })
+
+    stdoutCallback(Buffer.from(otherUserJson + '\n'))
+    expect(onMessage).toHaveBeenCalledTimes(1)
+  })
+
+  it('filters self-messages in group chats', () => {
+    const onMessage = vi.fn()
+    const options: ReceiverOptions = {
+      agentPhoneNumber: '+1555123456',
+      onMessage,
+    }
+
+    createReceiver(options)
+
+    // Self-message in a group
+    const selfGroupMessageJson = JSON.stringify({
+      envelope: {
+        source: '+1555123456', // Same as agentPhoneNumber
+        sourceNumber: '+1555123456',
+        sourceName: 'Jarvis',
+        timestamp: 1705312245123,
+        dataMessage: {
+          message: 'Hello group from me!',
+          groupInfo: {
+            groupId: 'Z3JvdXBfYWJjMTIz==',
+          },
+        },
+      },
+    })
+
+    stdoutCallback(Buffer.from(selfGroupMessageJson + '\n'))
+    expect(onMessage).not.toHaveBeenCalled()
+  })
 })

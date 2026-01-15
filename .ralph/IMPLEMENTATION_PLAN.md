@@ -137,11 +137,12 @@ Direct signal-cli integration replacing REST API.
   - Location: src/attachments.ts (new file)
   - Note: Implemented classifyAttachment(), generateAttachmentFilename(), formatAttachmentLine(), and processAttachment(). Includes path traversal protection via sanitizeFilename() and graceful error handling for file operations. Returns AttachmentResult with type, savedPath, passInline flag, and formatLine for agent context.
 
-- [ ] Implement self-message filtering
+- [x] Implement self-message filtering
   - Spec: specs/2-signal-integration.md § Message Types
   - Success: Messages where `source === AGENT_PHONE_NUMBER` are not routed to any mailbox
   - Test: `test_self_message_filtered`
-  - Location: src/receiver.ts
+  - Location: src/receiver.ts:213
+  - Note: Filter added in createReceiver() before parseSignalMessage() to avoid parsing discarded messages. Tests added for DM and group self-messages.
 
 - [ ] Implement receipt/typing indicator filtering
   - Spec: specs/2-signal-integration.md § Message Types
