@@ -116,11 +116,12 @@ Direct signal-cli integration replacing REST API.
   - Location: src/receiver.ts:106-110
   - Note: Implemented in parseSignalMessage() - uses groupInfo.groupId for groups, envelope.source for DMs. Test added in src/receiver.test.ts.
 
-- [ ] Implement message formatting with ISO 8601 timestamps
+- [x] Implement message formatting with ISO 8601 timestamps
   - Spec: specs/2-signal-integration.md § Message Format
   - Success: Messages formatted as `[{ISO8601}] {senderName} ({senderPhone}): {text}`
   - Test: `test_message_format_iso8601`
   - Location: src/format.ts (new file)
+  - Note: Implemented formatTextMessage() and formatTimestamp() utility functions. Uses Date.toISOString() for UTC timestamps.
 
 - [ ] Implement reaction formatting with target timestamp
   - Spec: specs/2-signal-integration.md § Reactions
