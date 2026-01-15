@@ -88,6 +88,21 @@ describe("Docker Compose", () => {
   });
 });
 
+describe("Dockerignore", () => {
+  const dockerignorePath = path.join(__dirname, ".dockerignore");
+
+  it("test_dockerignore_exists: should exclude node_modules, .git, and *.md patterns", () => {
+    expect(fs.existsSync(dockerignorePath)).toBe(true);
+
+    const content = fs.readFileSync(dockerignorePath, "utf-8");
+
+    // Required exclusions per implementation plan
+    expect(content).toContain("node_modules");
+    expect(content).toContain(".git");
+    expect(content).toMatch(/\*\.md/);
+  });
+});
+
 describe("Dockerfile", () => {
   const dockerfilePath = path.join(__dirname, "Dockerfile");
 

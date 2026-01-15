@@ -1,0 +1,31 @@
+# Dependencies - reinstalled in container
+node_modules
+
+# Version control
+.git
+
+# Documentation - not needed in container (but keep prompts/)
+/*.md
+!prompts/
+
+# Development files
+.env
+.env.*
+*.log
+.DS_Store
+
+# TypeScript source - only dist/ is needed
+src/
+tsconfig.json
+
+# Test files
+*.test.ts
+vitest.config.ts
+
+# IDE
+.vscode/
+.idea/
+
+# Local configs
+.ralph/
+signal-cli-config/
