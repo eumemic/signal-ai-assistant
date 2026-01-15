@@ -32,7 +32,7 @@ These items must be completed first as they establish the foundation for all oth
   - Location: Dockerfile (new file)
   - Note: Docker build will fail until prompts/ directory is created (later item) and dist/ is built. Test validates Dockerfile content; actual build requires Docker.
 
-- [ ] Replace docker-compose.yml (remove REST API, add jarvis-agent service)
+- [x] Replace docker-compose.yml (remove REST API, add jarvis-agent service)
   - Spec: specs/4-docker-deployment.md § docker-compose.yml
   - Success: `docker compose config` shows single `jarvis-agent` service with correct volumes (`signal-data`, `jarvis-workspace`) and environment variables
   - Test: `test_docker_compose_valid`

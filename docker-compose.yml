@@ -1,11 +1,18 @@
 services:
-  signal-cli-rest-api:
-    image: bbernhard/signal-cli-rest-api:latest
-    container_name: signal-cli-rest-api
+  jarvis-agent:
+    build: .
     restart: unless-stopped
-    environment:
-      - MODE=native
-    ports:
-      - "8080:8080"
+    mem_limit: 2g
     volumes:
-      - "./signal-cli-config:/home/.local/share/signal-cli"
+      - signal-data:/root/.local/share/signal-cli
+      - jarvis-workspace:/home/jarvis
+    environment:
+      # See specs/1-agent-foundation.md for full environment variable documentation
+      - ANTHROPIC_API_KEY
+      - ANTHROPIC_MODEL
+      - AGENT_NAME
+      - AGENT_PHONE_NUMBER
+
+volumes:
+  signal-data:
+  jarvis-workspace:

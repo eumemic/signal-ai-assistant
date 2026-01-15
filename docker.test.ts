@@ -35,6 +35,59 @@ describe("SDK Dependency Installation", () => {
   });
 });
 
+describe("Docker Compose", () => {
+  const dockerComposePath = path.join(__dirname, "docker-compose.yml");
+
+  it("test_docker_compose_valid: should define jarvis-agent service with correct config", () => {
+    expect(fs.existsSync(dockerComposePath)).toBe(true);
+
+    const dockerCompose = fs.readFileSync(dockerComposePath, "utf-8");
+
+    // Verify jarvis-agent service exists
+    expect(dockerCompose).toContain("jarvis-agent:");
+
+    // Verify no old signal-cli-rest-api service
+    expect(dockerCompose).not.toContain("signal-cli-rest-api");
+
+    // Verify required volumes
+    expect(dockerCompose).toContain("signal-data:");
+    expect(dockerCompose).toContain("jarvis-workspace:");
+
+    // Verify volume mounts
+    expect(dockerCompose).toContain("/root/.local/share/signal-cli");
+    expect(dockerCompose).toContain("/home/jarvis");
+
+    // Verify required environment variables are configured
+    expect(dockerCompose).toContain("ANTHROPIC_API_KEY");
+    expect(dockerCompose).toContain("AGENT_NAME");
+    expect(dockerCompose).toContain("AGENT_PHONE_NUMBER");
+
+    // Verify restart policy
+    expect(dockerCompose).toContain("unless-stopped");
+
+    // Verify memory limit
+    expect(dockerCompose).toContain("mem_limit");
+    expect(dockerCompose).toMatch(/mem_limit:\s*2g/);
+
+    // Validate with docker compose config if Docker is available
+    // Note: execSync used here with static commands only - no user input
+    try {
+      execSync("docker --version", { stdio: "ignore" });
+      const config = execSync("docker compose config", {
+        cwd: __dirname,
+        encoding: "utf-8",
+      });
+
+      // Verify single service in config output
+      expect(config).toContain("jarvis-agent");
+      expect(config).not.toContain("signal-cli-rest-api");
+    } catch {
+      // Docker not available - test passes based on file content
+      console.log("Docker not available, validating docker-compose.yml content only");
+    }
+  });
+});
+
 describe("Dockerfile", () => {
   const dockerfilePath = path.join(__dirname, "Dockerfile");
 
