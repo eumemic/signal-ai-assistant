@@ -78,7 +78,7 @@ Once infrastructure is in place, implement the core agent model.
   - Test: `test_prompt_variable_substitution`
   - Location: src/prompts.ts (new file)
 
-- [ ] Implement Mailbox model with queue and wake behavior
+- [x] Implement Mailbox model with queue and wake behavior
   - Spec: specs/2-signal-integration.md § Mailbox Model
   - Success: Mailbox class has `enqueue()`, `wake()`, `drainQueue()` methods; tracks `agentBusy` state; queues messages while agent is processing
   - Test: `test_mailbox_queue_and_wake`
