@@ -72,7 +72,7 @@ Once infrastructure is in place, implement the core agent model.
   - Test: `test_pass_tool_invocation`
   - Location: src/tools/pass.ts (new file)
 
-- [ ] Implement prompt loader with variable substitution
+- [x] Implement prompt loader with variable substitution
   - Spec: specs/3-agent-behavior.md § Variable Substitution
   - Success: Function `loadPrompt(type: 'dm' | 'group', vars: Record<string, string>)` reads files and substitutes all `{VAR}` patterns
   - Test: `test_prompt_variable_substitution`

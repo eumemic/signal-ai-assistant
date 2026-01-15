@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
+import { loadPrompt } from "./prompts";
 
 describe("prompts", () => {
   describe("prompts/common.md", () => {
@@ -111,6 +112,84 @@ describe("prompts", () => {
       expect(content).toContain("signal-cli");
       expect(content).toContain("send -m");
       expect(content).toContain("-g"); // group flag
+    });
+  });
+
+  describe("loadPrompt", () => {
+    it("test_prompt_variable_substitution", () => {
+      // Test DM prompt with variable substitution
+      const dmPrompt = loadPrompt("dm", {
+        AGENT_PHONE_NUMBER: "+1555123456",
+        CONTACT_NAME: "Alice",
+        CONTACT_PHONE: "+1555987654",
+      });
+
+      // Should contain common.md content
+      expect(dmPrompt).toContain("Jarvis");
+      expect(dmPrompt).toContain("family assistant");
+
+      // Should contain dm.md content
+      expect(dmPrompt).toMatch(/always\s+respond/i);
+
+      // Variables should be substituted
+      expect(dmPrompt).toContain("+1555123456");
+      expect(dmPrompt).toContain("Alice");
+      expect(dmPrompt).toContain("+1555987654");
+
+      // No unsubstituted placeholders should remain
+      expect(dmPrompt).not.toContain("{AGENT_PHONE_NUMBER}");
+      expect(dmPrompt).not.toContain("{CONTACT_NAME}");
+      expect(dmPrompt).not.toContain("{CONTACT_PHONE}");
+    });
+
+    it("substitutes group prompt variables", () => {
+      const groupPrompt = loadPrompt("group", {
+        AGENT_PHONE_NUMBER: "+1555123456",
+        GROUP_NAME: "Family Chat",
+        GROUP_ID: "abc123groupid==",
+      });
+
+      // Should contain common.md content
+      expect(groupPrompt).toContain("Jarvis");
+
+      // Should contain group.md content
+      expect(groupPrompt).toContain("pass()");
+
+      // Variables should be substituted
+      expect(groupPrompt).toContain("+1555123456");
+      expect(groupPrompt).toContain("Family Chat");
+      expect(groupPrompt).toContain("abc123groupid==");
+
+      // No unsubstituted placeholders should remain
+      expect(groupPrompt).not.toContain("{AGENT_PHONE_NUMBER}");
+      expect(groupPrompt).not.toContain("{GROUP_NAME}");
+      expect(groupPrompt).not.toContain("{GROUP_ID}");
+    });
+
+    it("combines common and type-specific prompts", () => {
+      const dmPrompt = loadPrompt("dm", {
+        AGENT_PHONE_NUMBER: "+1555123456",
+        CONTACT_NAME: "Bob",
+        CONTACT_PHONE: "+1555111222",
+      });
+
+      // Common content should appear first (or be present)
+      expect(dmPrompt).toContain("Jarvis");
+      expect(dmPrompt).toContain("Signal Operations");
+
+      // DM-specific content should also be present
+      expect(dmPrompt).toContain("chatting directly with");
+    });
+
+    it("handles special regex characters in variable values", () => {
+      const dmPrompt = loadPrompt("dm", {
+        AGENT_PHONE_NUMBER: "+1555123456",
+        CONTACT_NAME: "Test $User (Special)",
+        CONTACT_PHONE: "+1555111222",
+      });
+
+      // Special characters should be preserved
+      expect(dmPrompt).toContain("Test $User (Special)");
     });
   });
 });
