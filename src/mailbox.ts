@@ -103,3 +103,38 @@ export class Mailbox {
     return messages
   }
 }
+
+/**
+ * Formats a single message line for the batch delivery.
+ * Format: [{timestamp}] {senderName} ({senderPhone}): {text}
+ */
+function formatMessageLine(msg: FormattedMessage): string {
+  let line = `[${msg.timestamp}] ${msg.senderName} (${msg.senderPhone}): ${msg.text}`
+
+  if (msg.attachmentPath) {
+    line += `\n  📎 Attachment: ${msg.attachmentPath}`
+  }
+
+  if (msg.inlineImage) {
+    line += '\n  🖼️ [Image included for visual analysis]'
+  }
+
+  return line
+}
+
+/**
+ * Formats an array of messages into a batch string for delivery to the agent.
+ *
+ * When agent turn starts, all queued messages are delivered as a single user
+ * message with "New messages:" prefix followed by each message on its own line.
+ *
+ * Returns empty string if no messages provided.
+ */
+export function formatBatchForDelivery(messages: FormattedMessage[]): string {
+  if (messages.length === 0) {
+    return ''
+  }
+
+  const lines = messages.map(formatMessageLine)
+  return `New messages:\n\n${lines.join('\n')}`
+}

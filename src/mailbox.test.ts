@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { Mailbox, FormattedMessage } from './mailbox'
+import { Mailbox, FormattedMessage, formatBatchForDelivery } from './mailbox'
 
 describe('Mailbox', () => {
   let mailbox: Mailbox
@@ -197,6 +197,182 @@ describe('Mailbox', () => {
 
       expect(drained).toEqual([])
       expect(mailbox.queueLength).toBe(0)
+    })
+  })
+
+  describe('test_batch_message_delivery', () => {
+    it('should format messages with "New messages:" prefix', () => {
+      const messages: FormattedMessage[] = [
+        {
+          timestamp: '2024-01-15T10:30:45Z',
+          senderName: 'Tom',
+          senderPhone: '+1234567890',
+          text: 'Hey, quick question'
+        },
+        {
+          timestamp: '2024-01-15T10:30:52Z',
+          senderName: 'Tom',
+          senderPhone: '+1234567890',
+          text: 'Actually two questions'
+        },
+        {
+          timestamp: '2024-01-15T10:31:01Z',
+          senderName: 'Tom',
+          senderPhone: '+1234567890',
+          text: 'Never mind, figured it out!'
+        }
+      ]
+
+      const batch = formatBatchForDelivery(messages)
+
+      expect(batch).toBe(
+        `New messages:
+
+[2024-01-15T10:30:45Z] Tom (+1234567890): Hey, quick question
+[2024-01-15T10:30:52Z] Tom (+1234567890): Actually two questions
+[2024-01-15T10:31:01Z] Tom (+1234567890): Never mind, figured it out!`
+      )
+    })
+
+    it('should handle single message batch', () => {
+      const messages: FormattedMessage[] = [
+        {
+          timestamp: '2024-01-15T10:30:45Z',
+          senderName: 'Alice',
+          senderPhone: '+1987654321',
+          text: 'Hello!'
+        }
+      ]
+
+      const batch = formatBatchForDelivery(messages)
+
+      expect(batch).toBe(
+        `New messages:
+
+[2024-01-15T10:30:45Z] Alice (+1987654321): Hello!`
+      )
+    })
+
+    it('should return empty string for empty message array', () => {
+      const batch = formatBatchForDelivery([])
+
+      expect(batch).toBe('')
+    })
+
+    it('should handle messages from different senders', () => {
+      const messages: FormattedMessage[] = [
+        {
+          timestamp: '2024-01-15T10:30:45Z',
+          senderName: 'Tom',
+          senderPhone: '+1234567890',
+          text: 'Hey everyone'
+        },
+        {
+          timestamp: '2024-01-15T10:30:52Z',
+          senderName: 'Alice',
+          senderPhone: '+1987654321',
+          text: 'Hi Tom!'
+        },
+        {
+          timestamp: '2024-01-15T10:31:01Z',
+          senderName: 'Bob',
+          senderPhone: '+1555555555',
+          text: 'Hello!'
+        }
+      ]
+
+      const batch = formatBatchForDelivery(messages)
+
+      expect(batch).toBe(
+        `New messages:
+
+[2024-01-15T10:30:45Z] Tom (+1234567890): Hey everyone
+[2024-01-15T10:30:52Z] Alice (+1987654321): Hi Tom!
+[2024-01-15T10:31:01Z] Bob (+1555555555): Hello!`
+      )
+    })
+
+    it('should include attachment path line when present', () => {
+      const messages: FormattedMessage[] = [
+        {
+          timestamp: '2024-01-15T10:30:45Z',
+          senderName: 'Tom',
+          senderPhone: '+1234567890',
+          text: 'Check out this document',
+          attachmentPath: '/home/jarvis/downloads/document.pdf'
+        }
+      ]
+
+      const batch = formatBatchForDelivery(messages)
+
+      expect(batch).toBe(
+        `New messages:
+
+[2024-01-15T10:30:45Z] Tom (+1234567890): Check out this document
+  📎 Attachment: /home/jarvis/downloads/document.pdf`
+      )
+    })
+
+    it('should include inline image indicator when present', () => {
+      const messages: FormattedMessage[] = [
+        {
+          timestamp: '2024-01-15T10:30:45Z',
+          senderName: 'Tom',
+          senderPhone: '+1234567890',
+          text: 'Check out this photo',
+          attachmentPath: '/home/jarvis/downloads/photo.jpg',
+          inlineImage: Buffer.from('fake-image-data')
+        }
+      ]
+
+      const batch = formatBatchForDelivery(messages)
+
+      expect(batch).toBe(
+        `New messages:
+
+[2024-01-15T10:30:45Z] Tom (+1234567890): Check out this photo
+  📎 Attachment: /home/jarvis/downloads/photo.jpg
+  🖼️ [Image included for visual analysis]`
+      )
+    })
+
+    it('should handle multiple messages with mixed attachments', () => {
+      const messages: FormattedMessage[] = [
+        {
+          timestamp: '2024-01-15T10:30:45Z',
+          senderName: 'Tom',
+          senderPhone: '+1234567890',
+          text: 'Hello!'
+        },
+        {
+          timestamp: '2024-01-15T10:30:52Z',
+          senderName: 'Tom',
+          senderPhone: '+1234567890',
+          text: 'Here is the image',
+          attachmentPath: '/home/jarvis/downloads/image.png',
+          inlineImage: Buffer.from('fake-image-data')
+        },
+        {
+          timestamp: '2024-01-15T10:31:01Z',
+          senderName: 'Tom',
+          senderPhone: '+1234567890',
+          text: 'And the PDF',
+          attachmentPath: '/home/jarvis/downloads/doc.pdf'
+        }
+      ]
+
+      const batch = formatBatchForDelivery(messages)
+
+      expect(batch).toBe(
+        `New messages:
+
+[2024-01-15T10:30:45Z] Tom (+1234567890): Hello!
+[2024-01-15T10:30:52Z] Tom (+1234567890): Here is the image
+  📎 Attachment: /home/jarvis/downloads/image.png
+  🖼️ [Image included for visual analysis]
+[2024-01-15T10:31:01Z] Tom (+1234567890): And the PDF
+  📎 Attachment: /home/jarvis/downloads/doc.pdf`
+      )
     })
   })
 })

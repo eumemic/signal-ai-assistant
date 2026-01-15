@@ -172,11 +172,12 @@ Direct signal-cli integration replacing REST API.
   - Location: src/tool-validation.ts (new file)
   - Note: Implemented createToolValidator() function returning CanUseTool callback. Uses SDK's `{ behavior: 'deny', message }` format. Integration into agent will occur when orchestrator uses query() API with canUseTool option (V2 session API doesn't support canUseTool yet).
 
-- [ ] Implement batch message delivery to agent
+- [x] Implement batch message delivery to agent
   - Spec: specs/2-signal-integration.md § Batch Delivery
   - Success: When agent turn starts, all queued messages delivered as single user message with "New messages:" prefix
   - Test: `test_batch_message_delivery`
-  - Location: src/mailbox.ts
+  - Location: src/mailbox.ts:133-140
+  - Note: Implemented formatBatchForDelivery() function that formats FormattedMessage[] into a single string with "New messages:" prefix. Handles text messages, attachment paths (📎), and inline images (🖼️). Returns empty string for empty array.
 
 ## P3 - Orchestrator & Resilience
 
