@@ -183,11 +183,12 @@ Direct signal-cli integration replacing REST API.
 
 Replace main.ts with new orchestrator implementing all coordination.
 
-- [ ] Implement new main.ts orchestrator
+- [x] Implement new main.ts orchestrator
   - Spec: specs/1-agent-foundation.md § Files to Create/Modify
   - Success: Main loop coordinates receiver, mailboxes, and agents; manages agent lifecycle
   - Test: `test_orchestrator_startup`
   - Location: src/main.ts
+  - Note: Implemented createOrchestrator() factory that coordinates SessionStore, GroupCache, Receiver, Mailboxes, and ChatAgents. Handles graceful shutdown via SIGINT/SIGTERM. Supports lazy agent creation on first message per chat. Tests verify receiver startup, message routing, and mailbox creation.
 
 - [ ] Implement exponential backoff on receive failures (1s to 60s cap)
   - Spec: specs/2-signal-integration.md § Retry Backoff
