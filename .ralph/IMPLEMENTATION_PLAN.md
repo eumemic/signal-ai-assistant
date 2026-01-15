@@ -151,11 +151,12 @@ Direct signal-cli integration replacing REST API.
   - Location: src/receiver.ts:90-98
   - Note: Already implemented in parseSignalMessage() - returns null for receiptMessage or typingMessage. Test renamed to match plan identifier.
 
-- [ ] Implement group name resolution via signal-cli listGroups
+- [x] Implement group name resolution via signal-cli listGroups
   - Spec: specs/2-signal-integration.md § Group Name Resolution
   - Success: On startup, `signal-cli listGroups -d` populates ID-to-name cache; unknown group IDs trigger refresh
   - Test: `test_group_name_resolution`
   - Location: src/groups.ts (new file)
+  - Note: GroupCache provides load(), getName(), hasGroup(), and getNameWithRefresh() methods. Uses -o json flag for structured output. Handles errors gracefully by continuing with empty cache.
 
 - [ ] Implement empty sourceName fallback to phone number
   - Spec: specs/2-signal-integration.md § Contact Name Resolution
