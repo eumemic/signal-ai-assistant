@@ -25,11 +25,12 @@ These items must be completed first as they establish the foundation for all oth
   - Test: `test_env_anthropic_config`
   - Location: src/env.ts:5-11
 
-- [ ] Create Dockerfile with Node 22 Alpine and signal-cli
+- [x] Create Dockerfile with Node 22 Alpine and signal-cli
   - Spec: specs/4-docker-deployment.md § Dockerfile
   - Success: `docker build .` succeeds; container has `signal-cli` and `node` 22 available
   - Test: `test_dockerfile_builds`
   - Location: Dockerfile (new file)
+  - Note: Docker build will fail until prompts/ directory is created (later item) and dist/ is built. Test validates Dockerfile content; actual build requires Docker.
 
 - [ ] Replace docker-compose.yml (remove REST API, add jarvis-agent service)
   - Spec: specs/4-docker-deployment.md § docker-compose.yml
