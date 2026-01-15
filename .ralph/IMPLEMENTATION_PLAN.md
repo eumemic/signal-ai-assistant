@@ -243,11 +243,12 @@ Structured logging with ISO 8601 timestamps and chat ID correlation.
   - Location: src/logger.ts (new file)
   - Note: Implemented createLogger() factory and global logger instance. Uses Date.toISOString() for UTC timestamps. Provides info(), error(), and warn() methods that prefix output with timestamps.
 
-- [ ] Implement log types with chat ID correlation
+- [x] Implement log types with chat ID correlation
   - Spec: specs/1-agent-foundation.md § Observability
   - Success: Logs include type prefixes: `[receiver]`, `[mailbox:{chatId}]`, `[agent:{chatId}]`, `[thinking]`, `[bash]`, `[bash_result]`, `[pass]`
   - Test: `test_log_types`
   - Location: src/logger.ts
+  - Note: Extended Logger interface with typed methods: receiver(), mailbox(), agent(), thinking(), bash(), bashResult(), pass(), toolCall(), toolResult(). Uses logAgentAction() helper for agent-scoped prefixes. Tests verify all log type formats and chat ID correlation.
 
 ## Files to Remove
 
