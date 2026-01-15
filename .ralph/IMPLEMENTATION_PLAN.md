@@ -66,7 +66,7 @@ Once infrastructure is in place, implement the core agent model.
   - Test: `test_group_prompt_exists`
   - Location: prompts/group.md (new file)
 
-- [ ] Implement pass() MCP tool
+- [x] Implement pass() MCP tool
   - Spec: specs/1-agent-foundation.md § Pass Tool
   - Success: Tool can be called with optional `reason` parameter; logs reason to stdout; returns acknowledgment
   - Test: `test_pass_tool_invocation`
