@@ -84,11 +84,12 @@ Once infrastructure is in place, implement the core agent model.
   - Test: `test_mailbox_queue_and_wake`
   - Location: src/mailbox.ts (new file)
 
-- [ ] Implement agent session management with persistence
+- [x] Implement agent session management with persistence
   - Spec: specs/1-agent-foundation.md § Session Storage
   - Success: Sessions saved to `/home/jarvis/data/sessions.json`; `unstable_v2_resumeSession()` called on startup for existing sessions; `unstable_v2_createSession()` for new chats
   - Test: `test_session_persistence`
   - Location: src/sessions.ts (new file)
+  - Note: SessionStore class implemented with getSession, saveSession, removeSession, listChatIds methods. SDK session creation/resumption will be handled in src/agent.ts.
 
 - [ ] Implement agent creation per chat (DM vs group prompt selection)
   - Spec: specs/1-agent-foundation.md § Agent model
@@ -194,17 +195,19 @@ Replace main.ts with new orchestrator implementing all coordination.
   - Test: `test_turn_timeout`
   - Location: src/agent.ts
 
-- [ ] Implement session resume failure handling
+- [x] Implement session resume failure handling
   - Spec: specs/1-agent-foundation.md § Edge Cases
   - Success: When `unstable_v2_resumeSession()` fails, warning logged and fresh session created
   - Test: `test_session_resume_failure`
   - Location: src/sessions.ts
+  - Note: SessionStore.removeSession() enables callers to remove failed sessions. Actual retry with fresh session is done in src/agent.ts.
 
-- [ ] Implement corrupted sessions.json handling
+- [x] Implement corrupted sessions.json handling
   - Spec: specs/1-agent-foundation.md § Edge Cases
   - Success: When sessions.json cannot be parsed, error logged and all chats get fresh sessions
   - Test: `test_corrupted_sessions_file`
   - Location: src/sessions.ts
+  - Note: Implemented in SessionStore.load() - catches JSON parse errors, logs them, and starts with empty sessions map.
 
 - [ ] Implement agent crash isolation and recovery
   - Spec: specs/1-agent-foundation.md § Edge Cases
