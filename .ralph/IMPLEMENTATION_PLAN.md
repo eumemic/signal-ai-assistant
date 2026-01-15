@@ -91,11 +91,12 @@ Once infrastructure is in place, implement the core agent model.
   - Location: src/sessions.ts (new file)
   - Note: SessionStore class implemented with getSession, saveSession, removeSession, listChatIds methods. SDK session creation/resumption will be handled in src/agent.ts.
 
-- [ ] Implement agent creation per chat (DM vs group prompt selection)
+- [x] Implement agent creation per chat (DM vs group prompt selection)
   - Spec: specs/1-agent-foundation.md § Agent model
   - Success: One Claude SDK agent created per unique chat ID; DM chats use dm.md prompt; group chats use group.md prompt; both include common.md prefix
   - Test: `test_agent_per_chat_isolation`
   - Location: src/agent.ts (new file)
+  - Note: ChatAgent class creates/resumes SDK sessions with type-specific prompts. Falls back to contactPhone/groupId when names unavailable. Safe to re-initialize (closes old session first).
 
 ## P2 - Signal Integration
 
