@@ -8,6 +8,64 @@ vi.mock('child_process', () => ({
 }))
 
 describe('parseSignalMessage', () => {
+  describe('chat ID extraction', () => {
+    it('uses source phone as chatId for DM messages', () => {
+      const envelope: SignalEnvelope = {
+        source: '+1234567890',
+        sourceNumber: '+1234567890',
+        sourceName: 'Tom',
+        timestamp: 1705312245123,
+        dataMessage: {
+          message: 'Hello!',
+        },
+      }
+
+      const result = parseSignalMessage(envelope)
+
+      expect(result?.chatId).toBe('+1234567890')
+      expect(result?.chatType).toBe('dm')
+    })
+
+    it('uses groupId as chatId for group messages', () => {
+      const envelope: SignalEnvelope = {
+        source: '+1234567890',
+        sourceNumber: '+1234567890',
+        sourceName: 'Tom',
+        timestamp: 1705312245123,
+        dataMessage: {
+          message: 'Hello group!',
+          groupInfo: {
+            groupId: 'Z3JvdXBfYWJjMTIz==',
+          },
+        },
+      }
+
+      const result = parseSignalMessage(envelope)
+
+      expect(result?.chatId).toBe('Z3JvdXBfYWJjMTIz==')
+      expect(result?.chatType).toBe('group')
+      expect(result?.groupId).toBe('Z3JvdXBfYWJjMTIz==')
+    })
+
+    it('falls back to source phone when groupInfo exists but groupId is empty', () => {
+      const envelope: SignalEnvelope = {
+        source: '+1234567890',
+        sourceNumber: '+1234567890',
+        sourceName: 'Tom',
+        timestamp: 1705312245123,
+        dataMessage: {
+          message: 'Edge case',
+          groupInfo: { groupId: '' },
+        },
+      }
+
+      const result = parseSignalMessage(envelope)
+
+      expect(result?.chatId).toBe('+1234567890')
+      expect(result?.chatType).toBe('dm')
+    })
+  })
+
   it('parses a DM text message', () => {
     const envelope: SignalEnvelope = {
       source: '+1234567890',

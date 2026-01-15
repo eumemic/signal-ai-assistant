@@ -109,11 +109,12 @@ Direct signal-cli integration replacing REST API.
   - Location: src/receiver.ts (new file)
   - Note: Implemented createReceiver() with line-buffered JSON parsing, filtering of receipts/typing, and message routing by chatId. Also implements parseSignalMessage() for text/reaction/attachment parsing.
 
-- [ ] Implement chat ID extraction (groupId vs source phone)
+- [x] Implement chat ID extraction (groupId vs source phone)
   - Spec: specs/2-signal-integration.md § Chat ID Extraction
   - Success: Group messages routed by `groupInfo.groupId`; DMs routed by `source` phone number
   - Test: `test_chat_id_extraction`
-  - Location: src/receiver.ts
+  - Location: src/receiver.ts:106-110
+  - Note: Implemented in parseSignalMessage() - uses groupInfo.groupId for groups, envelope.source for DMs. Test added in src/receiver.test.ts.
 
 - [ ] Implement message formatting with ISO 8601 timestamps
   - Spec: specs/2-signal-integration.md § Message Format
