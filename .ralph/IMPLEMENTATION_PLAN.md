@@ -54,7 +54,7 @@ Once infrastructure is in place, implement the core agent model.
   - Test: `test_common_prompt_exists`
   - Location: prompts/common.md (new file)
 
-- [ ] Create prompts/dm.md with DM-specific behavior
+- [x] Create prompts/dm.md with DM-specific behavior
   - Spec: specs/3-agent-behavior.md § DM Prompt
   - Success: File exists with "always respond" behavior, variable placeholders `{CONTACT_NAME}`, `{CONTACT_PHONE}`, `{AGENT_PHONE_NUMBER}`
   - Test: `test_dm_prompt_exists`

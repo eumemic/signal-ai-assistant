@@ -47,4 +47,30 @@ describe("prompts", () => {
       expect(content).toContain("only see this conversation");
     });
   });
+
+  describe("prompts/dm.md", () => {
+    const dmPromptPath = path.join(process.cwd(), "prompts", "dm.md");
+
+    it("test_dm_prompt_exists", () => {
+      expect(fs.existsSync(dmPromptPath)).toBe(true);
+    });
+
+    it("contains always respond behavior", () => {
+      const content = fs.readFileSync(dmPromptPath, "utf-8");
+      expect(content).toMatch(/always\s+respond/i);
+    });
+
+    it("contains variable placeholders for contact info", () => {
+      const content = fs.readFileSync(dmPromptPath, "utf-8");
+      expect(content).toContain("{CONTACT_NAME}");
+      expect(content).toContain("{CONTACT_PHONE}");
+      expect(content).toContain("{AGENT_PHONE_NUMBER}");
+    });
+
+    it("contains send command example", () => {
+      const content = fs.readFileSync(dmPromptPath, "utf-8");
+      expect(content).toContain("signal-cli");
+      expect(content).toContain("send -m");
+    });
+  });
 });
