@@ -165,11 +165,12 @@ Direct signal-cli integration replacing REST API.
   - Location: src/format.ts
   - Note: Changed `??` to `||` operator in formatTextMessage() and formatReactionMessage() to handle both undefined AND empty string cases. Tests added for empty string scenarios.
 
-- [ ] Implement signal-cli command blocking (prevent receive)
+- [x] Implement signal-cli command blocking (prevent receive)
   - Spec: specs/2-signal-integration.md § Command Blocking
   - Success: SDK `canUseTool` callback returns `{ allowed: false }` when bash command contains `signal-cli` and `receive`
   - Test: `test_signal_receive_blocked`
   - Location: src/tool-validation.ts (new file)
+  - Note: Implemented createToolValidator() function returning CanUseTool callback. Uses SDK's `{ behavior: 'deny', message }` format. Integration into agent will occur when orchestrator uses query() API with canUseTool option (V2 session API doesn't support canUseTool yet).
 
 - [ ] Implement batch message delivery to agent
   - Spec: specs/2-signal-integration.md § Batch Delivery
