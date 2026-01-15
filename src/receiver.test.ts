@@ -471,7 +471,7 @@ describe('createReceiver', () => {
     expect(mockProcess.kill).toHaveBeenCalled()
   })
 
-  it('does not invoke onMessage for filtered message types', () => {
+  it('filters receipt and typing messages (test_receipt_typing_filtered)', () => {
     const onMessage = vi.fn()
     const options: ReceiverOptions = {
       agentPhoneNumber: '+1555123456',
@@ -480,7 +480,7 @@ describe('createReceiver', () => {
 
     createReceiver(options)
 
-    // Receipt message
+    // Receipt message should be filtered
     const receiptJson = JSON.stringify({
       envelope: {
         source: '+1234567890',
@@ -491,6 +491,30 @@ describe('createReceiver', () => {
 
     stdoutCallback(Buffer.from(receiptJson + '\n'))
     expect(onMessage).not.toHaveBeenCalled()
+
+    // Typing indicator should be filtered
+    const typingJson = JSON.stringify({
+      envelope: {
+        source: '+1234567890',
+        timestamp: 1705312245124,
+        typingMessage: { action: 'STARTED' },
+      },
+    })
+
+    stdoutCallback(Buffer.from(typingJson + '\n'))
+    expect(onMessage).not.toHaveBeenCalled()
+
+    // Verify a real message still gets through
+    const realMessageJson = JSON.stringify({
+      envelope: {
+        source: '+1234567890',
+        timestamp: 1705312245125,
+        dataMessage: { message: 'Hello!' },
+      },
+    })
+
+    stdoutCallback(Buffer.from(realMessageJson + '\n'))
+    expect(onMessage).toHaveBeenCalledTimes(1)
   })
 
   it('filters out self-messages (source === agentPhoneNumber)', () => {

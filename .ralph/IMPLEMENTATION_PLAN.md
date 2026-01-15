@@ -144,11 +144,12 @@ Direct signal-cli integration replacing REST API.
   - Location: src/receiver.ts:213
   - Note: Filter added in createReceiver() before parseSignalMessage() to avoid parsing discarded messages. Tests added for DM and group self-messages.
 
-- [ ] Implement receipt/typing indicator filtering
+- [x] Implement receipt/typing indicator filtering
   - Spec: specs/2-signal-integration.md § Message Types
   - Success: Messages with `receiptMessage` or `typingMessage` are ignored (not routed)
   - Test: `test_receipt_typing_filtered`
-  - Location: src/receiver.ts
+  - Location: src/receiver.ts:90-98
+  - Note: Already implemented in parseSignalMessage() - returns null for receiptMessage or typingMessage. Test renamed to match plan identifier.
 
 - [ ] Implement group name resolution via signal-cli listGroups
   - Spec: specs/2-signal-integration.md § Group Name Resolution
