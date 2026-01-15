@@ -190,11 +190,12 @@ Replace main.ts with new orchestrator implementing all coordination.
   - Location: src/main.ts
   - Note: Implemented createOrchestrator() factory that coordinates SessionStore, GroupCache, Receiver, Mailboxes, and ChatAgents. Handles graceful shutdown via SIGINT/SIGTERM. Supports lazy agent creation on first message per chat. Tests verify receiver startup, message routing, and mailbox creation.
 
-- [ ] Implement exponential backoff on receive failures (1s to 60s cap)
+- [x] Implement exponential backoff on receive failures (1s to 60s cap)
   - Spec: specs/2-signal-integration.md § Retry Backoff
   - Success: Failed receives retry with delays: 1s, 2s, 4s, 8s, 16s, 32s, 60s, 60s...; reset to 1s after success
   - Test: `test_exponential_backoff`
   - Location: src/receiver.ts
+  - Note: Implemented createResilientReceiver() which wraps createReceiver() with auto-restart and exponential backoff. Backoff resets on successful message receive. Main.ts updated to use createResilientReceiver.
 
 - [ ] Implement malformed JSON line handling in receiver
   - Spec: specs/2-signal-integration.md § Edge Cases

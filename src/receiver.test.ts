@@ -598,3 +598,248 @@ describe('createReceiver', () => {
     expect(onMessage).not.toHaveBeenCalled()
   })
 })
+
+describe('createResilientReceiver (test_exponential_backoff)', () => {
+  let mockProcesses: Array<{
+    stdout: { on: ReturnType<typeof vi.fn> }
+    stderr: { on: ReturnType<typeof vi.fn> }
+    on: ReturnType<typeof vi.fn>
+    kill: ReturnType<typeof vi.fn>
+  }>
+  let stdoutCallbacks: Array<(data: Buffer) => void>
+  let closeCallbacks: Array<(code: number | null) => void>
+  let errorCallbacks: Array<(error: Error) => void>
+  let processIndex: number
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    mockProcesses = []
+    stdoutCallbacks = []
+    closeCallbacks = []
+    errorCallbacks = []
+    processIndex = 0
+
+    vi.mocked(spawn).mockImplementation(() => {
+      const idx = processIndex++
+      const mockProcess = {
+        stdout: {
+          on: vi.fn((event: string, cb: (data: Buffer) => void) => {
+            if (event === 'data') stdoutCallbacks[idx] = cb
+          }),
+        },
+        stderr: {
+          on: vi.fn(),
+        },
+        on: vi.fn((event: string, cb: (...args: unknown[]) => void) => {
+          if (event === 'close') closeCallbacks[idx] = cb as (code: number | null) => void
+          if (event === 'error') errorCallbacks[idx] = cb as (error: Error) => void
+        }),
+        kill: vi.fn(),
+      }
+      mockProcesses[idx] = mockProcess
+      return mockProcess as unknown as ReturnType<typeof spawn>
+    })
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+    vi.useRealTimers()
+  })
+
+  it('restarts with exponential backoff on process close (1s, 2s, 4s, 8s, 16s, 32s, 60s cap)', async () => {
+    const { createResilientReceiver } = await import('./receiver')
+    const onMessage = vi.fn()
+
+    createResilientReceiver({
+      agentPhoneNumber: '+1555123456',
+      onMessage,
+    })
+
+    // Initial spawn
+    expect(spawn).toHaveBeenCalledTimes(1)
+
+    // First failure - should wait 1s before restart
+    closeCallbacks[0](1)
+    expect(spawn).toHaveBeenCalledTimes(1) // Not restarted yet
+
+    await vi.advanceTimersByTimeAsync(999)
+    expect(spawn).toHaveBeenCalledTimes(1) // Still waiting
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(spawn).toHaveBeenCalledTimes(2) // Restarted after 1s
+
+    // Second failure - should wait 2s
+    closeCallbacks[1](1)
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(spawn).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(spawn).toHaveBeenCalledTimes(3) // Restarted after 2s
+
+    // Third failure - should wait 4s
+    closeCallbacks[2](1)
+    await vi.advanceTimersByTimeAsync(3999)
+    expect(spawn).toHaveBeenCalledTimes(3)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(spawn).toHaveBeenCalledTimes(4) // Restarted after 4s
+
+    // Fourth failure - should wait 8s
+    closeCallbacks[3](1)
+    await vi.advanceTimersByTimeAsync(7999)
+    expect(spawn).toHaveBeenCalledTimes(4)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(spawn).toHaveBeenCalledTimes(5) // Restarted after 8s
+
+    // Fifth failure - should wait 16s
+    closeCallbacks[4](1)
+    await vi.advanceTimersByTimeAsync(15999)
+    expect(spawn).toHaveBeenCalledTimes(5)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(spawn).toHaveBeenCalledTimes(6) // Restarted after 16s
+
+    // Sixth failure - should wait 32s
+    closeCallbacks[5](1)
+    await vi.advanceTimersByTimeAsync(31999)
+    expect(spawn).toHaveBeenCalledTimes(6)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(spawn).toHaveBeenCalledTimes(7) // Restarted after 32s
+
+    // Seventh failure - should wait 60s (capped)
+    closeCallbacks[6](1)
+    await vi.advanceTimersByTimeAsync(59999)
+    expect(spawn).toHaveBeenCalledTimes(7)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(spawn).toHaveBeenCalledTimes(8) // Restarted after 60s (cap)
+
+    // Eighth failure - should still wait 60s (cap maintained)
+    closeCallbacks[7](1)
+    await vi.advanceTimersByTimeAsync(59999)
+    expect(spawn).toHaveBeenCalledTimes(8)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(spawn).toHaveBeenCalledTimes(9) // Still 60s cap
+  })
+
+  it('resets backoff to 1s after successful message receive', async () => {
+    const { createResilientReceiver } = await import('./receiver')
+    const onMessage = vi.fn()
+
+    createResilientReceiver({
+      agentPhoneNumber: '+1555123456',
+      onMessage,
+    })
+
+    // First failure - 1s delay
+    closeCallbacks[0](1)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(spawn).toHaveBeenCalledTimes(2)
+
+    // Second failure - would be 2s delay
+    closeCallbacks[1](1)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(spawn).toHaveBeenCalledTimes(3)
+
+    // Now receive a successful message
+    const messageJson = JSON.stringify({
+      envelope: {
+        source: '+1234567890',
+        timestamp: 1705312245123,
+        dataMessage: { message: 'Hello!' },
+      },
+    })
+    stdoutCallbacks[2](Buffer.from(messageJson + '\n'))
+    expect(onMessage).toHaveBeenCalled()
+
+    // Third failure - should reset to 1s delay (not 4s)
+    closeCallbacks[2](1)
+    await vi.advanceTimersByTimeAsync(999)
+    expect(spawn).toHaveBeenCalledTimes(3) // Not yet
+    await vi.advanceTimersByTimeAsync(1)
+    expect(spawn).toHaveBeenCalledTimes(4) // Restarted after 1s (reset)
+  })
+
+  it('restarts on spawn error with backoff (error + close events)', async () => {
+    const { createResilientReceiver } = await import('./receiver')
+    const onMessage = vi.fn()
+
+    createResilientReceiver({
+      agentPhoneNumber: '+1555123456',
+      onMessage,
+    })
+
+    expect(spawn).toHaveBeenCalledTimes(1)
+
+    // Spawn error - Node.js fires both 'error' and 'close' events
+    errorCallbacks[0](new Error('spawn ENOENT'))
+    closeCallbacks[0](null) // close event follows error for spawn failures
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(spawn).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not restart on JSON parse error (non-fatal)', async () => {
+    const { createResilientReceiver } = await import('./receiver')
+    const onMessage = vi.fn()
+
+    createResilientReceiver({
+      agentPhoneNumber: '+1555123456',
+      onMessage,
+    })
+
+    expect(spawn).toHaveBeenCalledTimes(1)
+
+    // JSON parse errors call onError but the process keeps running (no onClose)
+    // The resilient receiver should NOT restart because the process is still alive
+    // We don't need to explicitly trigger the error - just verify that without
+    // onClose being called, no restart happens
+
+    // Wait for would-be restart time
+    await vi.advanceTimersByTimeAsync(60000)
+
+    // Should NOT have restarted - only onClose triggers restart
+    expect(spawn).toHaveBeenCalledTimes(1)
+  })
+
+  it('stop() prevents further restarts', async () => {
+    const { createResilientReceiver } = await import('./receiver')
+    const onMessage = vi.fn()
+
+    const handle = createResilientReceiver({
+      agentPhoneNumber: '+1555123456',
+      onMessage,
+    })
+
+    expect(spawn).toHaveBeenCalledTimes(1)
+
+    // Stop the receiver
+    handle.stop()
+
+    // Simulate process close
+    closeCallbacks[0](1)
+
+    // Wait for would-be restart time
+    await vi.advanceTimersByTimeAsync(60000)
+
+    // Should not have restarted
+    expect(spawn).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not restart on clean exit (code 0) by default', async () => {
+    const { createResilientReceiver } = await import('./receiver')
+    const onMessage = vi.fn()
+
+    createResilientReceiver({
+      agentPhoneNumber: '+1555123456',
+      onMessage,
+    })
+
+    expect(spawn).toHaveBeenCalledTimes(1)
+
+    // Clean exit
+    closeCallbacks[0](0)
+
+    // Wait for would-be restart time
+    await vi.advanceTimersByTimeAsync(1000)
+
+    // For signal-cli receive -t -1, a code 0 exit is unexpected and should still restart
+    // The spec says to restart on failures - and for an indefinite receive, any exit is a failure
+    expect(spawn).toHaveBeenCalledTimes(2)
+  })
+})

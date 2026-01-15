@@ -245,3 +245,101 @@ export function createReceiver(options: ReceiverOptions): ReceiverHandle {
     },
   }
 }
+
+/**
+ * Backoff configuration for resilient receiver.
+ */
+interface BackoffConfig {
+  /** Initial delay in milliseconds (default: 1000) */
+  initialDelayMs: number
+  /** Maximum delay in milliseconds (default: 60000) */
+  maxDelayMs: number
+  /** Multiplier for each retry (default: 2) */
+  multiplier: number
+}
+
+const DEFAULT_BACKOFF: BackoffConfig = {
+  initialDelayMs: 1000,
+  maxDelayMs: 60000,
+  multiplier: 2,
+}
+
+/**
+ * Options for creating a resilient receiver.
+ * Extends ReceiverOptions with optional backoff configuration.
+ */
+export interface ResilientReceiverOptions extends ReceiverOptions {
+  /** Optional backoff configuration */
+  backoff?: Partial<BackoffConfig>
+}
+
+/**
+ * Creates a resilient receiver that automatically restarts with exponential backoff on failures.
+ *
+ * The receiver restarts when:
+ * - The process exits (any exit code, since -t -1 should run indefinitely)
+ * - A spawn error occurs
+ *
+ * Backoff sequence: 1s → 2s → 4s → 8s → 16s → 32s → 60s (cap)
+ * Backoff resets to 1s after a successful message is received.
+ */
+export function createResilientReceiver(options: ResilientReceiverOptions): ReceiverHandle {
+  const { backoff: backoffOverride, onMessage, onClose, onError, ...baseOptions } = options
+
+  const backoff: BackoffConfig = {
+    ...DEFAULT_BACKOFF,
+    ...backoffOverride,
+  }
+
+  let currentDelayMs = backoff.initialDelayMs
+  let stopped = false
+  let currentHandle: ReceiverHandle | null = null
+  let restartTimer: ReturnType<typeof setTimeout> | null = null
+
+  function scheduleRestart(): void {
+    if (stopped) return
+
+    const delay = currentDelayMs
+    currentDelayMs = Math.min(currentDelayMs * backoff.multiplier, backoff.maxDelayMs)
+
+    restartTimer = setTimeout(() => {
+      if (!stopped) {
+        startReceiver()
+      }
+    }, delay)
+  }
+
+  function startReceiver(): void {
+    currentHandle = createReceiver({
+      ...baseOptions,
+      onMessage: (message) => {
+        currentDelayMs = backoff.initialDelayMs
+        onMessage(message)
+      },
+      onClose: (code) => {
+        onClose?.(code)
+        // Restart on process exit (any exit code, since -t -1 should run indefinitely)
+        scheduleRestart()
+      },
+      onError: (error) => {
+        onError?.(error)
+        // Don't restart on error alone - wait for onClose
+        // JSON parse errors (non-fatal) call onError but not onClose
+        // Spawn errors call both onError and onClose, so onClose handles restart
+      },
+    })
+  }
+
+  startReceiver()
+
+  return {
+    stop: () => {
+      stopped = true
+      if (restartTimer) {
+        clearTimeout(restartTimer)
+        restartTimer = null
+      }
+      currentHandle?.stop()
+    },
+  }
+}

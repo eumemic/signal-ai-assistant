@@ -1,5 +1,5 @@
 import { getEnv } from './env'
-import { createReceiver, ParsedMessage, ReceiverHandle } from './receiver'
+import { createResilientReceiver, ParsedMessage, ReceiverHandle } from './receiver'
 import { Mailbox, FormattedMessage, formatBatchForDelivery } from './mailbox'
 import { ChatAgent, ChatAgentConfig } from './agent'
 import { SessionStore } from './sessions'
@@ -214,12 +214,12 @@ export function createOrchestrator(): Orchestrator {
       groupCache = createGroupCache(agentPhoneNumber)
       await groupCache.load()
 
-      // Start the receiver
-      receiver = createReceiver({
+      // Start the resilient receiver (auto-restarts with exponential backoff)
+      receiver = createResilientReceiver({
         agentPhoneNumber,
         onMessage: handleMessage,
         onClose: (code) => {
-          console.log(`[receiver] Process exited with code ${code}`)
+          console.log(`[receiver] Process exited with code ${code}, will restart with backoff`)
         },
         onError: (error) => {
           console.error(`[receiver] Error:`, error.message)
