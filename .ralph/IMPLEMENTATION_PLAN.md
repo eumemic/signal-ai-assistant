@@ -123,11 +123,12 @@ Direct signal-cli integration replacing REST API.
   - Location: src/format.ts (new file)
   - Note: Implemented formatTextMessage() and formatTimestamp() utility functions. Uses Date.toISOString() for UTC timestamps.
 
-- [ ] Implement reaction formatting with target timestamp
+- [x] Implement reaction formatting with target timestamp
   - Spec: specs/2-signal-integration.md § Reactions
   - Success: Reactions formatted as `[{timestamp}] {reactor} ({phone}) reacted {emoji} to msg@{targetTimestamp} from {author}: "{preview}"`
   - Test: `test_reaction_format`
   - Location: src/format.ts
+  - Note: Implemented formatReactionMessage() with optional targetAuthorName and messagePreview. Preview is omitted if not provided (since message history lookup is not yet implemented).
 
 - [ ] Implement attachment handling (images inline + save, documents save only)
   - Spec: specs/2-signal-integration.md § Attachments

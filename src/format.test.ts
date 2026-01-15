@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { formatTextMessage } from './format'
-import { ParsedTextMessage } from './receiver'
+import { formatTextMessage, formatReactionMessage } from './format'
+import { ParsedTextMessage, ParsedReactionMessage } from './receiver'
 
 describe('formatTextMessage', () => {
   it('test_message_format_iso8601', () => {
@@ -101,5 +101,128 @@ describe('formatTextMessage', () => {
     const formatted = formatTextMessage(message)
 
     expect(formatted).toBe('[2024-01-15T10:30:45.000Z] Tom (+1234567890): Hello! 👋 How are you? <script>alert("xss")</script>')
+  })
+})
+
+describe('formatReactionMessage', () => {
+  it('test_reaction_format', () => {
+    // Test reaction formatting with target timestamp
+    // Format: [{timestamp}] {reactorName} ({reactorPhone}) reacted {emoji} to msg@{targetTimestamp} from {authorName}: "{preview}"
+    const reaction: ParsedReactionMessage = {
+      type: 'reaction',
+      chatId: '+1234567890',
+      chatType: 'dm',
+      source: '+0987654321',
+      sourceName: 'Sarah',
+      timestamp: 1705314660000, // 2024-01-15T10:31:00.000Z
+      emoji: '👍',
+      targetAuthor: '+1234567890',
+      targetTimestamp: 1705312245123,
+    }
+
+    const formatted = formatReactionMessage(reaction, {
+      targetAuthorName: 'Tom',
+      messagePreview: 'Hey, what\'s...',
+    })
+
+    expect(formatted).toBe('[2024-01-15T10:31:00.000Z] Sarah (+0987654321) reacted 👍 to msg@1705312245123 from Tom: "Hey, what\'s..."')
+  })
+
+  it('formats reaction without message preview', () => {
+    const reaction: ParsedReactionMessage = {
+      type: 'reaction',
+      chatId: '+1234567890',
+      chatType: 'dm',
+      source: '+0987654321',
+      sourceName: 'Sarah',
+      timestamp: 1705314660000,
+      emoji: '❤️',
+      targetAuthor: '+1234567890',
+      targetTimestamp: 1705312245123,
+    }
+
+    // Without preview, the format should omit the preview portion
+    const formatted = formatReactionMessage(reaction)
+
+    expect(formatted).toBe('[2024-01-15T10:31:00.000Z] Sarah (+0987654321) reacted ❤️ to msg@1705312245123 from +1234567890')
+  })
+
+  it('formats reaction with only target author name', () => {
+    const reaction: ParsedReactionMessage = {
+      type: 'reaction',
+      chatId: '+1234567890',
+      chatType: 'dm',
+      source: '+0987654321',
+      sourceName: 'Sarah',
+      timestamp: 1705314660000,
+      emoji: '😂',
+      targetAuthor: '+1234567890',
+      targetTimestamp: 1705312245123,
+    }
+
+    const formatted = formatReactionMessage(reaction, {
+      targetAuthorName: 'Tom',
+    })
+
+    expect(formatted).toBe('[2024-01-15T10:31:00.000Z] Sarah (+0987654321) reacted 😂 to msg@1705312245123 from Tom')
+  })
+
+  it('falls back to phone number when reactor sourceName is missing', () => {
+    const reaction: ParsedReactionMessage = {
+      type: 'reaction',
+      chatId: '+1234567890',
+      chatType: 'dm',
+      source: '+0987654321',
+      // sourceName intentionally missing
+      timestamp: 1705314660000,
+      emoji: '👍',
+      targetAuthor: '+1234567890',
+      targetTimestamp: 1705312245123,
+    }
+
+    const formatted = formatReactionMessage(reaction)
+
+    expect(formatted).toBe('[2024-01-15T10:31:00.000Z] +0987654321 (+0987654321) reacted 👍 to msg@1705312245123 from +1234567890')
+  })
+
+  it('formats group reaction the same way', () => {
+    const reaction: ParsedReactionMessage = {
+      type: 'reaction',
+      chatId: 'Z3JvdXBfYWJjMTIz==',
+      chatType: 'group',
+      source: '+0987654321',
+      sourceName: 'Sarah',
+      timestamp: 1705314660000,
+      groupId: 'Z3JvdXBfYWJjMTIz==',
+      emoji: '🎉',
+      targetAuthor: '+1234567890',
+      targetTimestamp: 1705312245123,
+    }
+
+    const formatted = formatReactionMessage(reaction, {
+      targetAuthorName: 'Tom',
+      messagePreview: 'Hey everyone!',
+    })
+
+    // Per spec: chat label omitted since agent knows its chat from system prompt
+    expect(formatted).toBe('[2024-01-15T10:31:00.000Z] Sarah (+0987654321) reacted 🎉 to msg@1705312245123 from Tom: "Hey everyone!"')
+  })
+
+  it('handles special emoji characters', () => {
+    const reaction: ParsedReactionMessage = {
+      type: 'reaction',
+      chatId: '+1234567890',
+      chatType: 'dm',
+      source: '+0987654321',
+      sourceName: 'Sarah',
+      timestamp: 1705314660000,
+      emoji: '👨‍👩‍👧‍👦', // Complex emoji with ZWJ
+      targetAuthor: '+1234567890',
+      targetTimestamp: 1705312245123,
+    }
+
+    const formatted = formatReactionMessage(reaction)
+
+    expect(formatted).toBe('[2024-01-15T10:31:00.000Z] Sarah (+0987654321) reacted 👨‍👩‍👧‍👦 to msg@1705312245123 from +1234567890')
   })
 })

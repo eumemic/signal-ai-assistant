@@ -1,4 +1,4 @@
-import { ParsedTextMessage } from './receiver'
+import { ParsedTextMessage, ParsedReactionMessage } from './receiver'
 
 /**
  * Formats a Signal timestamp (Unix milliseconds) as ISO 8601.
@@ -21,4 +21,39 @@ export function formatTextMessage(message: ParsedTextMessage): string {
   const senderPhone = message.source
 
   return `[${timestamp}] ${senderName} (${senderPhone}): ${message.text}`
+}
+
+/**
+ * Options for formatting a reaction message.
+ */
+export interface ReactionFormatOptions {
+  /** Display name for the target message author (defaults to phone number) */
+  targetAuthorName?: string
+  /** Preview of the original message text */
+  messagePreview?: string
+}
+
+/**
+ * Formats a parsed reaction message for the agent's context.
+ *
+ * Format: [{ISO8601}] {reactorName} ({reactorPhone}) reacted {emoji} to msg@{targetTimestamp} from {authorName}: "{preview}"
+ *
+ * If messagePreview is not provided, the trailing `: "{preview}"` is omitted.
+ */
+export function formatReactionMessage(
+  reaction: ParsedReactionMessage,
+  options: ReactionFormatOptions = {}
+): string {
+  const timestamp = formatTimestamp(reaction.timestamp)
+  const reactorName = reaction.sourceName ?? reaction.source
+  const reactorPhone = reaction.source
+  const authorName = options.targetAuthorName ?? reaction.targetAuthor
+
+  let result = `[${timestamp}] ${reactorName} (${reactorPhone}) reacted ${reaction.emoji} to msg@${reaction.targetTimestamp} from ${authorName}`
+
+  if (options.messagePreview !== undefined) {
+    result += `: "${options.messagePreview}"`
+  }
+
+  return result
 }
