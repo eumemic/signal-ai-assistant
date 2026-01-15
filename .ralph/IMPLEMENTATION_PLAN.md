@@ -19,7 +19,7 @@ These items must be completed first as they establish the foundation for all oth
   - Test: `test_node_version_requirement`
   - Location: package.json:28-30
 
-- [ ] Update environment variables (replace OpenAI with Anthropic)
+- [x] Update environment variables (replace OpenAI with Anthropic)
   - Spec: specs/1-agent-foundation.md § Environment Variables
   - Success: `getEnv()` returns `{ anthropicApiKey, anthropicModel, agentName, agentPhoneNumber }`; OpenAI vars removed; `SIGNAL_CLI_REST_API_URL` removed
   - Test: `test_env_anthropic_config`
