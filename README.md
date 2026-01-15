@@ -37,7 +37,7 @@ The Signal AI Assistant project aims to leverage the capabilities of modern LLMs
    AGENT_PHONE_NUMBER=... # the phone number attached to your signal account
    SIGNAL_CLI_REST_API_URL=... # optional, defaults to http://localhost:8080
    OPENAI_API_KEY=... # your OpenAI API key (https://platform.openai.com/account/api-keys)
-   OPENAI_MODEL=... # optional, defaults to gpt-3.5-turbo. e.g. gpt-4o-mini
+   OPENAI_MODEL=... # optional, defaults to gpt-5.2
    ```
 
 5. Build and start the Signal AI Assistant:

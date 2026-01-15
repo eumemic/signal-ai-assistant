@@ -64,7 +64,7 @@ Required in `.env`:
 
 Optional:
 - `SIGNAL_CLI_REST_API_URL` - defaults to `http://localhost:8080`
-- `OPENAI_MODEL` - defaults to `gpt-3.5-turbo`
+- `OPENAI_MODEL` - defaults to `gpt-5.2`
 
 ## Signal Registration
 

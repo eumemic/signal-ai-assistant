@@ -21,7 +21,7 @@ export function getEnv(): Env {
     signalCliRestApiUrl:
       optional("SIGNAL_CLI_REST_API_URL") || "http://localhost:8080",
     openAIApiKey: required("OPENAI_API_KEY"),
-    openAIModel: optional("OPENAI_MODEL") || "gpt-3.5-turbo",
+    openAIModel: optional("OPENAI_MODEL") || "gpt-5.2",
   };
 
   return env;
