@@ -60,7 +60,7 @@ Once infrastructure is in place, implement the core agent model.
   - Test: `test_dm_prompt_exists`
   - Location: prompts/dm.md (new file)
 
-- [ ] Create prompts/group.md with discretion examples and pass tool usage
+- [x] Create prompts/group.md with discretion examples and pass tool usage
   - Spec: specs/3-agent-behavior.md § Group Prompt
   - Success: File exists with discretion guidelines, pass() tool reference, example exchanges, variable placeholders `{GROUP_NAME}`, `{GROUP_ID}`, `{AGENT_PHONE_NUMBER}`
   - Test: `test_group_prompt_exists`

@@ -73,4 +73,44 @@ describe("prompts", () => {
       expect(content).toContain("send -m");
     });
   });
+
+  describe("prompts/group.md", () => {
+    const groupPromptPath = path.join(process.cwd(), "prompts", "group.md");
+
+    it("test_group_prompt_exists", () => {
+      expect(fs.existsSync(groupPromptPath)).toBe(true);
+    });
+
+    it("contains discretion guidelines", () => {
+      const content = fs.readFileSync(groupPromptPath, "utf-8");
+      expect(content).toMatch(/respond\s+when/i);
+      expect(content).toMatch(/don't\s+respond\s+when|do\s+not\s+respond\s+when/i);
+    });
+
+    it("contains pass() tool reference", () => {
+      const content = fs.readFileSync(groupPromptPath, "utf-8");
+      expect(content).toContain("pass()");
+    });
+
+    it("contains example exchanges", () => {
+      const content = fs.readFileSync(groupPromptPath, "utf-8");
+      // Should have examples showing when to respond and when not to
+      expect(content).toMatch(/should\s+respond|example/i);
+      expect(content).toMatch(/should\s+not\s+respond|shouldn't\s+respond/i);
+    });
+
+    it("contains variable placeholders for group info", () => {
+      const content = fs.readFileSync(groupPromptPath, "utf-8");
+      expect(content).toContain("{GROUP_NAME}");
+      expect(content).toContain("{GROUP_ID}");
+      expect(content).toContain("{AGENT_PHONE_NUMBER}");
+    });
+
+    it("contains send command example for groups", () => {
+      const content = fs.readFileSync(groupPromptPath, "utf-8");
+      expect(content).toContain("signal-cli");
+      expect(content).toContain("send -m");
+      expect(content).toContain("-g"); // group flag
+    });
+  });
 });
