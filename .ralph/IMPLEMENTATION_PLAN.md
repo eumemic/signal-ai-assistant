@@ -102,11 +102,12 @@ Once infrastructure is in place, implement the core agent model.
 
 Direct signal-cli integration replacing REST API.
 
-- [ ] Implement receiver loop with `signal-cli receive -t -1 --json`
+- [x] Implement receiver loop with `signal-cli receive -t -1 --json`
   - Spec: specs/2-signal-integration.md § Receiver Loop
   - Success: Continuous subprocess reading JSON lines; messages parsed and routed to mailboxes by chat ID
   - Test: `test_receiver_parses_json_messages`
   - Location: src/receiver.ts (new file)
+  - Note: Implemented createReceiver() with line-buffered JSON parsing, filtering of receipts/typing, and message routing by chatId. Also implements parseSignalMessage() for text/reaction/attachment parsing.
 
 - [ ] Implement chat ID extraction (groupId vs source phone)
   - Spec: specs/2-signal-integration.md § Chat ID Extraction
