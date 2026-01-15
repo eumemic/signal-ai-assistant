@@ -48,7 +48,7 @@ These items must be completed first as they establish the foundation for all oth
 
 Once infrastructure is in place, implement the core agent model.
 
-- [ ] Create prompts/common.md with shared identity and tool instructions
+- [x] Create prompts/common.md with shared identity and tool instructions
   - Spec: specs/3-agent-behavior.md § Common Prompt
   - Success: File exists at `prompts/common.md` with Jarvis identity, personality, signal-cli instructions, and constraints
   - Test: `test_common_prompt_exists`
