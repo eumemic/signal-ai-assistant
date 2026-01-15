@@ -158,11 +158,12 @@ Direct signal-cli integration replacing REST API.
   - Location: src/groups.ts (new file)
   - Note: GroupCache provides load(), getName(), hasGroup(), and getNameWithRefresh() methods. Uses -o json flag for structured output. Handles errors gracefully by continuing with empty cache.
 
-- [ ] Implement empty sourceName fallback to phone number
+- [x] Implement empty sourceName fallback to phone number
   - Spec: specs/2-signal-integration.md § Contact Name Resolution
   - Success: When `sourceName` is empty or missing, phone number is used as display name
   - Test: `test_empty_source_name_fallback`
   - Location: src/format.ts
+  - Note: Changed `??` to `||` operator in formatTextMessage() and formatReactionMessage() to handle both undefined AND empty string cases. Tests added for empty string scenarios.
 
 - [ ] Implement signal-cli command blocking (prevent receive)
   - Spec: specs/2-signal-integration.md § Command Blocking

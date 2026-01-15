@@ -17,7 +17,8 @@ export function formatTimestamp(timestamp: number): string {
  */
 export function formatTextMessage(message: ParsedTextMessage): string {
   const timestamp = formatTimestamp(message.timestamp)
-  const senderName = message.sourceName ?? message.source
+  // Use || to fall back to phone number for both undefined AND empty string
+  const senderName = message.sourceName || message.source
   const senderPhone = message.source
 
   return `[${timestamp}] ${senderName} (${senderPhone}): ${message.text}`
@@ -45,7 +46,8 @@ export function formatReactionMessage(
   options: ReactionFormatOptions = {}
 ): string {
   const timestamp = formatTimestamp(reaction.timestamp)
-  const reactorName = reaction.sourceName ?? reaction.source
+  // Use || to fall back to phone number for both undefined AND empty string
+  const reactorName = reaction.sourceName || reaction.source
   const reactorPhone = reaction.source
   const authorName = options.targetAuthorName ?? reaction.targetAuthor
 

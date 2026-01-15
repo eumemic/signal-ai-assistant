@@ -102,6 +102,41 @@ describe('formatTextMessage', () => {
 
     expect(formatted).toBe('[2024-01-15T10:30:45.000Z] Tom (+1234567890): Hello! 👋 How are you? <script>alert("xss")</script>')
   })
+
+  it('test_empty_source_name_fallback', () => {
+    // Per spec: When sourceName is empty or missing, phone number is used as display name
+    // Format becomes: [timestamp] +1234567890 (+1234567890): message
+    const messageWithEmptyName: ParsedTextMessage = {
+      type: 'text',
+      chatId: '+1234567890',
+      chatType: 'dm',
+      source: '+1234567890',
+      sourceName: '', // Empty string, not undefined
+      timestamp: 1705314645000,
+      text: 'Hello from unknown contact',
+    }
+
+    const formatted = formatTextMessage(messageWithEmptyName)
+
+    // Phone number should be used for both name and phone fields
+    expect(formatted).toBe('[2024-01-15T10:30:45.000Z] +1234567890 (+1234567890): Hello from unknown contact')
+  })
+
+  it('falls back to phone number when sourceName is undefined', () => {
+    const messageWithUndefinedName: ParsedTextMessage = {
+      type: 'text',
+      chatId: '+1234567890',
+      chatType: 'dm',
+      source: '+1234567890',
+      // sourceName is undefined (not provided)
+      timestamp: 1705314645000,
+      text: 'Hello from unknown contact',
+    }
+
+    const formatted = formatTextMessage(messageWithUndefinedName)
+
+    expect(formatted).toBe('[2024-01-15T10:30:45.000Z] +1234567890 (+1234567890): Hello from unknown contact')
+  })
 })
 
 describe('formatReactionMessage', () => {
@@ -174,6 +209,25 @@ describe('formatReactionMessage', () => {
       chatType: 'dm',
       source: '+0987654321',
       // sourceName intentionally missing
+      timestamp: 1705314660000,
+      emoji: '👍',
+      targetAuthor: '+1234567890',
+      targetTimestamp: 1705312245123,
+    }
+
+    const formatted = formatReactionMessage(reaction)
+
+    expect(formatted).toBe('[2024-01-15T10:31:00.000Z] +0987654321 (+0987654321) reacted 👍 to msg@1705312245123 from +1234567890')
+  })
+
+  it('falls back to phone number when reactor sourceName is empty string', () => {
+    // Per spec: empty sourceName should also fall back to phone number
+    const reaction: ParsedReactionMessage = {
+      type: 'reaction',
+      chatId: '+1234567890',
+      chatType: 'dm',
+      source: '+0987654321',
+      sourceName: '', // Empty string, not undefined
       timestamp: 1705314660000,
       emoji: '👍',
       targetAuthor: '+1234567890',
