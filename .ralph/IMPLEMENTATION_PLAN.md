@@ -130,11 +130,12 @@ Direct signal-cli integration replacing REST API.
   - Location: src/format.ts
   - Note: Implemented formatReactionMessage() with optional targetAuthorName and messagePreview. Preview is omitted if not provided (since message history lookup is not yet implemented).
 
-- [ ] Implement attachment handling (images inline + save, documents save only)
+- [x] Implement attachment handling (images inline + save, documents save only)
   - Spec: specs/2-signal-integration.md § Attachments
   - Success: Images saved to `/home/jarvis/downloads/` AND passed inline to Claude; documents saved to disk only; audio/video logged as unsupported
   - Test: `test_attachment_handling`
   - Location: src/attachments.ts (new file)
+  - Note: Implemented classifyAttachment(), generateAttachmentFilename(), formatAttachmentLine(), and processAttachment(). Includes path traversal protection via sanitizeFilename() and graceful error handling for file operations. Returns AttachmentResult with type, savedPath, passInline flag, and formatLine for agent context.
 
 - [ ] Implement self-message filtering
   - Spec: specs/2-signal-integration.md § Message Types
