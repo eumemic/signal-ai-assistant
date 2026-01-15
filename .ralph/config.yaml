@@ -1,0 +1,7 @@
+# Ralph Configuration
+specs_dir: ./specs
+shared_utils_dir: ./src/lib
+
+# Git automation
+auto_push: false
+auto_tag: false

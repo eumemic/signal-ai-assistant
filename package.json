@@ -13,13 +13,12 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.0",
     "dotenv": "^16.0.3",
-    "langchain": "^0.0.64",
-    "lodash": "^4.17.21",
-    "typescript": "^5.0.4"
+    "typescript": "^5.0.4",
+    "zod": "^3.22.0"
   },
   "devDependencies": {
-    "@types/lodash": "^4.14.194",
     "@types/node": "^20.0.0",
     "husky": "^9.1.7",
     "ts-node": "^10.9.1",
