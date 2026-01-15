@@ -4,12 +4,33 @@ import {
 } from '@anthropic-ai/claude-agent-sdk'
 import { loadPrompt } from './prompts'
 
+/** Default turn timeout: 10 minutes in milliseconds */
+const DEFAULT_TURN_TIMEOUT_MS = 10 * 60 * 1000
+
 /**
  * Common options required for all agents.
  */
 export interface AgentOptions {
   agentPhoneNumber: string
   anthropicModel: string
+}
+
+/**
+ * Options for running an agent turn.
+ */
+export interface TurnOptions {
+  /** Custom timeout in milliseconds (default: 10 minutes) */
+  timeoutMs?: number
+}
+
+/**
+ * Result of running an agent turn.
+ */
+export interface TurnResult {
+  /** Whether the turn timed out before completing */
+  timedOut: boolean
+  /** The agent's response (undefined if timed out) */
+  response?: string
 }
 
 /**
@@ -153,5 +174,62 @@ export class ChatAgent {
       this.session = null
       this._sessionId = null
     }
+  }
+
+  /**
+   * Runs an agent turn with the given message, applying a timeout.
+   *
+   * The turn timeout (default 10 minutes) prevents runaway agent turns from
+   * blocking forever. On timeout:
+   * - The timeout is logged
+   * - The agent goes idle (returns to check mailbox on next message)
+   * - The orchestrator is not affected (resilient design)
+   *
+   * @param message - The message to send to the agent
+   * @param options - Optional turn configuration (e.g., custom timeout)
+   * @returns TurnResult indicating success or timeout
+   */
+  async runTurn(message: string, options?: TurnOptions): Promise<TurnResult> {
+    if (!this.session) {
+      throw new Error('Agent not initialized. Call initialize() first.')
+    }
+
+    const timeoutMs = options?.timeoutMs ?? DEFAULT_TURN_TIMEOUT_MS
+
+    const timeoutPromise = new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), timeoutMs)
+    })
+
+    const turnPromise = this.executeTurn(message)
+
+    const response = await Promise.race([turnPromise, timeoutPromise])
+
+    if (response === null) {
+      console.log(
+        `[agent:${this.chatId}] Turn timed out after ${timeoutMs / 60000} minutes`
+      )
+      return { timedOut: true }
+    }
+
+    return { timedOut: false, response }
+  }
+
+  /**
+   * Executes the turn by sending the message and collecting the response from the stream.
+   */
+  private async executeTurn(message: string): Promise<string> {
+    await this.session!.send(message)
+
+    let response = ''
+    for await (const sdkMessage of this.session!.stream()) {
+      if (sdkMessage.type === 'result') {
+        if (sdkMessage.subtype === 'success') {
+          response = sdkMessage.result
+        }
+        break
+      }
+    }
+
+    return response
   }
 }

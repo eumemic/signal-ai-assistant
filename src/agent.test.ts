@@ -39,7 +39,14 @@ describe('ChatAgent', () => {
     return {
       sessionId,
       send: vi.fn().mockResolvedValue(undefined),
-      stream: vi.fn(),
+      stream: vi.fn().mockReturnValue((async function* () {
+        // Default: immediately yield a success result
+        yield {
+          type: 'result',
+          subtype: 'success',
+          result: 'Mock response',
+        }
+      })()),
       close: vi.fn(),
     }
   }
@@ -256,6 +263,201 @@ describe('ChatAgent', () => {
 
       // Verify loadPrompt was called - it combines common.md internally
       expect(mockLoadPrompt).toHaveBeenCalledWith('dm', expect.any(Object))
+    })
+  })
+
+  describe('test_turn_timeout', () => {
+    it('should complete turn successfully when under timeout', async () => {
+      const mockSession = createMockSession('session_timeout_test')
+      // Mock send and stream for a successful response
+      mockSession.send = vi.fn().mockResolvedValue(undefined)
+      mockSession.stream = vi.fn().mockReturnValue((async function* () {
+        yield {
+          type: 'result',
+          subtype: 'success',
+          result: 'Hello!',
+        }
+      })())
+      mockCreateSession.mockReturnValue(mockSession as any)
+
+      const agent = new ChatAgent({
+        chatId: '+1234567890',
+        type: 'dm',
+        contactName: 'Alice',
+        contactPhone: '+1234567890',
+        ...defaultOptions,
+      })
+
+      await agent.initialize()
+
+      const result = await agent.runTurn('Test message')
+      expect(result.timedOut).toBe(false)
+      expect(result.response).toBe('Hello!')
+      expect(mockSession.send).toHaveBeenCalledWith('Test message')
+    })
+
+    it('should timeout after 10 minutes and log timeout', async () => {
+      vi.useFakeTimers()
+
+      const mockSession = createMockSession('session_timeout_test')
+      // Create a stream that never yields (hangs forever)
+      mockSession.send = vi.fn().mockResolvedValue(undefined)
+      mockSession.stream = vi.fn().mockReturnValue((async function* () {
+        // Never yield - simulate a hanging stream
+        await new Promise(() => {})
+      })())
+      mockCreateSession.mockReturnValue(mockSession as any)
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      const agent = new ChatAgent({
+        chatId: '+1234567890',
+        type: 'dm',
+        contactName: 'Alice',
+        contactPhone: '+1234567890',
+        ...defaultOptions,
+      })
+
+      await agent.initialize()
+
+      // Start the turn
+      const turnPromise = agent.runTurn('Test message')
+
+      // Advance time past the 10-minute timeout
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000 + 100)
+
+      // The turn should have timed out
+      const result = await turnPromise
+
+      expect(result.timedOut).toBe(true)
+      expect(result.response).toBeUndefined()
+
+      // Verify timeout was logged
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[agent:+1234567890] Turn timed out after 10 minutes')
+      )
+
+      consoleSpy.mockRestore()
+      vi.useRealTimers()
+    })
+
+    it('should not crash orchestrator on timeout (resilience)', async () => {
+      vi.useFakeTimers()
+
+      const mockSession = createMockSession('session_resilience')
+      // First call: stream hangs forever
+      mockSession.send = vi.fn().mockResolvedValue(undefined)
+      mockSession.stream = vi.fn().mockReturnValueOnce((async function* () {
+        await new Promise(() => {}) // Never yields
+      })())
+      mockCreateSession.mockReturnValue(mockSession as any)
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      const agent = new ChatAgent({
+        chatId: '+1234567890',
+        type: 'dm',
+        contactName: 'Alice',
+        contactPhone: '+1234567890',
+        ...defaultOptions,
+      })
+
+      await agent.initialize()
+
+      // Multiple turns should not throw or crash
+      const turn1Promise = agent.runTurn('Message 1')
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000 + 100)
+      const result1 = await turn1Promise
+
+      // Agent should still be usable after timeout
+      // Second call: stream returns immediately
+      mockSession.stream = vi.fn().mockReturnValue((async function* () {
+        yield {
+          type: 'result',
+          subtype: 'success',
+          result: 'Back online!',
+        }
+      })())
+      const result2 = await agent.runTurn('Message 2')
+
+      expect(result1.timedOut).toBe(true)
+      expect(result2.timedOut).toBe(false)
+      expect(result2.response).toBe('Back online!')
+
+      consoleSpy.mockRestore()
+      vi.useRealTimers()
+    })
+
+    it('should use default 10-minute timeout', async () => {
+      vi.useFakeTimers()
+
+      const mockSession = createMockSession('session_default_timeout')
+      mockSession.send = vi.fn().mockResolvedValue(undefined)
+      mockSession.stream = vi.fn().mockReturnValue((async function* () {
+        await new Promise(() => {}) // Never yields
+      })())
+      mockCreateSession.mockReturnValue(mockSession as any)
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      const agent = new ChatAgent({
+        chatId: '+1234567890',
+        type: 'dm',
+        contactName: 'Alice',
+        contactPhone: '+1234567890',
+        ...defaultOptions,
+      })
+
+      await agent.initialize()
+
+      const turnPromise = agent.runTurn('Test')
+
+      // Advance to just under 10 minutes - should not timeout yet
+      await vi.advanceTimersByTimeAsync(9 * 60 * 1000 + 59 * 1000)
+
+      // Turn should still be in progress (promise not resolved)
+      // Advance past 10 minutes
+      await vi.advanceTimersByTimeAsync(2 * 1000)
+
+      const result = await turnPromise
+      expect(result.timedOut).toBe(true)
+
+      consoleSpy.mockRestore()
+      vi.useRealTimers()
+    })
+
+    it('should allow custom timeout override for testing', async () => {
+      vi.useFakeTimers()
+
+      const mockSession = createMockSession('session_custom_timeout')
+      mockSession.send = vi.fn().mockResolvedValue(undefined)
+      mockSession.stream = vi.fn().mockReturnValue((async function* () {
+        await new Promise(() => {}) // Never yields
+      })())
+      mockCreateSession.mockReturnValue(mockSession as any)
+
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      const agent = new ChatAgent({
+        chatId: '+1234567890',
+        type: 'dm',
+        contactName: 'Alice',
+        contactPhone: '+1234567890',
+        ...defaultOptions,
+      })
+
+      await agent.initialize()
+
+      // Use 1 second timeout for testing
+      const turnPromise = agent.runTurn('Test', { timeoutMs: 1000 })
+
+      await vi.advanceTimersByTimeAsync(1100)
+
+      const result = await turnPromise
+      expect(result.timedOut).toBe(true)
+
+      consoleSpy.mockRestore()
+      vi.useRealTimers()
     })
   })
 })

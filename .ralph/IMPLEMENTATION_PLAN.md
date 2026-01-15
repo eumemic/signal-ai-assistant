@@ -204,11 +204,12 @@ Replace main.ts with new orchestrator implementing all coordination.
   - Location: src/receiver.ts
   - Note: Already implemented in createReceiver() at lines 209-223. JSON.parse errors are caught, logged via onError callback, and processing continues. Test renamed to match plan identifier.
 
-- [ ] Implement 10-minute turn timeout
+- [x] Implement 10-minute turn timeout
   - Spec: specs/1-agent-foundation.md § Key Decisions
   - Success: Agent turns that exceed 10 minutes are logged and terminated; agent goes idle
   - Test: `test_turn_timeout`
-  - Location: src/agent.ts
+  - Location: src/agent.ts:192-234
+  - Note: Implemented runTurn() method with configurable timeout (default 10 min). Uses Promise.race between turn execution and timeout. On timeout, logs message and returns { timedOut: true }. SDK streaming pattern handled via executeTurn() helper. Tests cover: successful turns, timeout detection, resilience after timeout, custom timeout override.
 
 - [x] Implement session resume failure handling
   - Spec: specs/1-agent-foundation.md § Edge Cases
