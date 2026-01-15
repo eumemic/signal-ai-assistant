@@ -236,11 +236,12 @@ Replace main.ts with new orchestrator implementing all coordination.
 
 Structured logging with ISO 8601 timestamps and chat ID correlation.
 
-- [ ] Implement structured logging with ISO 8601 timestamps
+- [x] Implement structured logging with ISO 8601 timestamps
   - Spec: specs/1-agent-foundation.md § Observability
   - Success: All log lines prefixed with ISO 8601 timestamp (e.g., `2024-01-15T10:30:45.123Z`)
   - Test: `test_log_timestamp_format`
   - Location: src/logger.ts (new file)
+  - Note: Implemented createLogger() factory and global logger instance. Uses Date.toISOString() for UTC timestamps. Provides info(), error(), and warn() methods that prefix output with timestamps.
 
 - [ ] Implement log types with chat ID correlation
   - Spec: specs/1-agent-foundation.md § Observability
