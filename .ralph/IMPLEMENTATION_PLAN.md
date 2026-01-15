@@ -13,7 +13,7 @@ These items must be completed first as they establish the foundation for all oth
   - Location: package.json:17
   - Note: TypeScript build fails due to src/chat.ts still importing removed packages - this is expected until that file is deleted per "Files to Remove" section
 
-- [ ] Update Node.js version requirement to 22 LTS
+- [x] Update Node.js version requirement to 22 LTS
   - Spec: specs/1-agent-foundation.md § Key Decisions
   - Success: `package.json` engines field specifies `"node": ">=22"`
   - Test: `test_node_version_requirement`

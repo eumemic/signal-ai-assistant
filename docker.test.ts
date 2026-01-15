@@ -3,11 +3,19 @@ import * as fs from "fs";
 import * as path from "path";
 
 describe("SDK Dependency Installation", () => {
-  let packageJson: { dependencies?: Record<string, string> };
+  let packageJson: {
+    dependencies?: Record<string, string>;
+    engines?: { node?: string };
+  };
 
   beforeAll(() => {
     const packageJsonPath = path.join(__dirname, "package.json");
     packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+  });
+
+  it("should require Node.js 22 or higher", () => {
+    expect(packageJson.engines).toBeDefined();
+    expect(packageJson.engines?.node).toBe(">=22");
   });
 
   it("should have @anthropic-ai/claude-agent-sdk installed", () => {
