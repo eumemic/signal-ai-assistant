@@ -120,13 +120,34 @@ export function createOrchestrator(): Orchestrator {
   }
 
   /**
+   * Removes an agent from the map, closing it if it exists.
+   * This allows the agent to be recreated fresh on the next message.
+   */
+  function removeAgent(chatId: string): void {
+    const agent = agents.get(chatId)
+    if (agent) {
+      agent.close()
+      agents.delete(chatId)
+      // Also remove the stored session so a fresh one is created
+      sessionStore.removeSession(chatId)
+    }
+  }
+
+  /**
    * Handles an agent turn for a mailbox.
+   *
+   * Implements crash isolation: errors are logged but don't crash the orchestrator.
+   * On error, the agent is removed so it can be recreated on the next message.
    */
   async function handleAgentTurn(chatId: string, mailbox: Mailbox): Promise<void> {
     // Mark agent as busy
     mailbox.setAgentBusy(true)
 
     try {
+      // Get or create the agent BEFORE draining messages
+      // This ensures messages aren't lost if agent creation fails
+      const agent = await getOrCreateAgent(chatId, mailbox.type, {})
+
       // Drain all pending messages
       const messages = mailbox.drainQueue()
       if (messages.length === 0) {
@@ -134,9 +155,6 @@ export function createOrchestrator(): Orchestrator {
       }
 
       console.log(`[agent:${chatId}] Processing ${messages.length} message(s)`)
-
-      // Get or create the agent
-      const agent = await getOrCreateAgent(chatId, mailbox.type, {})
 
       // Format messages for delivery
       const batchText = formatBatchForDelivery(messages)
@@ -148,6 +166,8 @@ export function createOrchestrator(): Orchestrator {
 
     } catch (error) {
       console.error(`[agent:${chatId}] Error during turn:`, error)
+      // Remove the crashed agent so it gets recreated on next message
+      removeAgent(chatId)
     } finally {
       // Mark agent as no longer busy
       mailbox.setAgentBusy(false)

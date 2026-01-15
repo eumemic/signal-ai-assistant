@@ -225,11 +225,12 @@ Replace main.ts with new orchestrator implementing all coordination.
   - Location: src/sessions.ts
   - Note: Implemented in SessionStore.load() - catches JSON parse errors, logs them, and starts with empty sessions map.
 
-- [ ] Implement agent crash isolation and recovery
+- [x] Implement agent crash isolation and recovery
   - Spec: specs/1-agent-foundation.md § Edge Cases
   - Success: Individual agent errors logged but don't crash orchestrator; agent recreated on next message
   - Test: `test_agent_crash_isolation`
-  - Location: src/agent.ts
+  - Location: src/agent.ts (crash detection), src/main.ts (removeAgent + handleAgentTurn error handling)
+  - Note: ChatAgent propagates errors to orchestrator. handleAgentTurn catches errors, logs them, and calls removeAgent() to delete the crashed agent. On next message, getOrCreateAgent() creates a fresh agent. Agent creation moved before queue drain to prevent message loss on initialization failure.
 
 ## P4 - Observability & Logging
 

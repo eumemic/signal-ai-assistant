@@ -460,4 +460,120 @@ describe('ChatAgent', () => {
       vi.useRealTimers()
     })
   })
+
+  describe('test_agent_crash_isolation', () => {
+    it('should throw error on initialization failure for orchestrator to catch', async () => {
+      // Simulate SDK initialization failure
+      mockCreateSession.mockImplementation(() => {
+        throw new Error('SDK initialization failed')
+      })
+
+      const agent = new ChatAgent({
+        chatId: '+1234567890',
+        type: 'dm',
+        contactName: 'Alice',
+        contactPhone: '+1234567890',
+        ...defaultOptions,
+      })
+
+      // Agent initialization should propagate the error
+      await expect(agent.initialize()).rejects.toThrow('SDK initialization failed')
+    })
+
+    it('should throw error on turn failure when stream throws', async () => {
+      const mockSession = createMockSession('session_crash')
+      mockSession.send = vi.fn().mockResolvedValue(undefined)
+      mockSession.stream = vi.fn().mockReturnValue((async function* () {
+        throw new Error('Stream crashed unexpectedly')
+      })())
+      mockCreateSession.mockReturnValue(mockSession as any)
+
+      const agent = new ChatAgent({
+        chatId: '+1234567890',
+        type: 'dm',
+        contactName: 'Alice',
+        contactPhone: '+1234567890',
+        ...defaultOptions,
+      })
+
+      await agent.initialize()
+
+      // Turn should propagate the error for orchestrator to handle
+      await expect(agent.runTurn('Test message')).rejects.toThrow('Stream crashed unexpectedly')
+    })
+
+    it('should throw error when send() fails', async () => {
+      const mockSession = createMockSession('session_send_crash')
+      mockSession.send = vi.fn().mockRejectedValue(new Error('Send failed'))
+      mockCreateSession.mockReturnValue(mockSession as any)
+
+      const agent = new ChatAgent({
+        chatId: '+1234567890',
+        type: 'dm',
+        contactName: 'Alice',
+        contactPhone: '+1234567890',
+        ...defaultOptions,
+      })
+
+      await agent.initialize()
+
+      // Turn should propagate the error for orchestrator to handle
+      await expect(agent.runTurn('Test message')).rejects.toThrow('Send failed')
+    })
+
+    it('should allow agent to be reinitialized after crash', async () => {
+      // First initialization fails
+      mockCreateSession.mockImplementationOnce(() => {
+        throw new Error('Transient failure')
+      })
+      // Second initialization succeeds
+      const mockSession = createMockSession('session_recovered')
+      mockCreateSession.mockReturnValueOnce(mockSession as any)
+
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      const agent = new ChatAgent({
+        chatId: '+1234567890',
+        type: 'dm',
+        contactName: 'Alice',
+        contactPhone: '+1234567890',
+        ...defaultOptions,
+      })
+
+      // First init fails
+      await expect(agent.initialize()).rejects.toThrow('Transient failure')
+
+      // Second init succeeds - agent can be recreated
+      await agent.initialize()
+      expect(agent.sessionId).toBe('session_recovered')
+
+      consoleSpy.mockRestore()
+    })
+
+    it('should close existing session before reinitializing', async () => {
+      const mockSession1 = createMockSession('session_1')
+      const mockSession2 = createMockSession('session_2')
+      mockCreateSession
+        .mockReturnValueOnce(mockSession1 as any)
+        .mockReturnValueOnce(mockSession2 as any)
+
+      const agent = new ChatAgent({
+        chatId: '+1234567890',
+        type: 'dm',
+        contactName: 'Alice',
+        contactPhone: '+1234567890',
+        ...defaultOptions,
+      })
+
+      await agent.initialize()
+      expect(agent.sessionId).toBe('session_1')
+
+      // Reinitialize (as orchestrator would do after crash)
+      await agent.initialize()
+
+      // Old session should have been closed
+      expect(mockSession1.close).toHaveBeenCalled()
+      expect(agent.sessionId).toBe('session_2')
+    })
+  })
 })
