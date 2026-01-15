@@ -197,11 +197,12 @@ Replace main.ts with new orchestrator implementing all coordination.
   - Location: src/receiver.ts
   - Note: Implemented createResilientReceiver() which wraps createReceiver() with auto-restart and exponential backoff. Backoff resets on successful message receive. Main.ts updated to use createResilientReceiver.
 
-- [ ] Implement malformed JSON line handling in receiver
+- [x] Implement malformed JSON line handling in receiver
   - Spec: specs/2-signal-integration.md § Edge Cases
   - Success: Invalid JSON lines logged and skipped; receiver continues processing
   - Test: `test_malformed_json_skipped`
   - Location: src/receiver.ts
+  - Note: Already implemented in createReceiver() at lines 209-223. JSON.parse errors are caught, logged via onError callback, and processing continues. Test renamed to match plan identifier.
 
 - [ ] Implement 10-minute turn timeout
   - Spec: specs/1-agent-foundation.md § Key Decisions

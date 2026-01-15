@@ -402,7 +402,7 @@ describe('createReceiver', () => {
     expect(onMessage).toHaveBeenCalledTimes(1)
   })
 
-  it('skips malformed JSON lines and continues', () => {
+  it('skips malformed JSON lines and continues (test_malformed_json_skipped)', () => {
     const onMessage = vi.fn()
     const onError = vi.fn()
     const options: ReceiverOptions = {
