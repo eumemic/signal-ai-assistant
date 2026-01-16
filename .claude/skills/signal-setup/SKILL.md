@@ -33,7 +33,7 @@ Signal registration is a one-time setup process that creates the cryptographic i
 ### Step 2: Register Phone Number
 
 ```bash
-signal-cli -c ./data/signal-cli-config -a +1234567890 register --captcha 'signalcaptcha://signal-hcaptcha.TOKEN_HERE'
+./scripts/signal-cli.sh -a +1234567890 register --captcha 'signalcaptcha://signal-hcaptcha.TOKEN_HERE'
 ```
 
 Replace `+1234567890` with the actual phone number in E.164 format.
@@ -43,20 +43,20 @@ Replace `+1234567890` with the actual phone number in E.164 format.
 ### Step 3: Verify with SMS Code
 
 ```bash
-signal-cli -c ./data/signal-cli-config -a +1234567890 verify 123456
+./scripts/signal-cli.sh -a +1234567890 verify 123456
 ```
 
 Replace `123456` with the 6-digit code from the SMS.
 
 **Success indicator:** Command completes with no output.
 
-### Step 4: Set Profile Name
+### Step 4: Set Profile Name and Avatar
 
 ```bash
-signal-cli -c ./data/signal-cli-config -a +1234567890 updateProfile --given-name "AgentName"
+./scripts/signal-cli.sh -a +1234567890 updateProfile --given-name "AgentName" --avatar jarvis.jpg
 ```
 
-This sets the display name other Signal users will see.
+This sets the display name and profile picture other Signal users will see.
 
 ## Troubleshooting
 
@@ -74,7 +74,7 @@ The registration process did not complete. Common causes:
 Some phone numbers cannot receive Signal verification SMS. Try voice verification:
 
 ```bash
-signal-cli -c ./data/signal-cli-config -a +1234567890 register --captcha 'TOKEN' --voice
+./scripts/signal-cli.sh -a +1234567890 register --captcha 'TOKEN' --voice
 ```
 
 **Note:** Voice verification only works after an SMS attempt has been made. Signal requires trying SMS first.
@@ -142,19 +142,21 @@ Ensure the `SIGNAL_CLI_CONFIG` environment variable points to the mounted path i
 
 ## Quick Reference
 
+All commands use the wrapper script `./scripts/signal-cli.sh` which automatically sets the config path to `data/signal-cli-config/`.
+
 ```bash
 # Register (get CAPTCHA first)
-signal-cli -c ./data/signal-cli-config -a +1234567890 register --captcha 'TOKEN'
+./scripts/signal-cli.sh -a +1234567890 register --captcha 'TOKEN'
 
 # Verify SMS code
-signal-cli -c ./data/signal-cli-config -a +1234567890 verify 123456
+./scripts/signal-cli.sh -a +1234567890 verify 123456
 
-# Set profile name
-signal-cli -c ./data/signal-cli-config -a +1234567890 updateProfile --given-name "Name"
+# Set profile name and avatar
+./scripts/signal-cli.sh -a +1234567890 updateProfile --given-name "Name" --avatar jarvis.jpg
 
 # Test sending a message
-signal-cli -c ./data/signal-cli-config -a +1234567890 send -m "Hello" +0987654321
+./scripts/signal-cli.sh -a +1234567890 send -m "Hello" +0987654321
 
 # List registered accounts
-cat ./data/signal-cli-config/data/accounts.json
+./scripts/signal-cli.sh listAccounts
 ```
