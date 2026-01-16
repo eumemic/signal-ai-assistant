@@ -4,3 +4,4 @@ dist
 
 # Signal CLI config (contains account keys)
 signal-cli-config/
+data/

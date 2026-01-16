@@ -1,8 +1,11 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
-/** Path to the sessions file per spec */
-export const SESSIONS_FILE_PATH = '/home/jarvis/data/sessions.json'
+/** Path to the sessions file - uses DATA_DIR env var or defaults to ./data */
+export const SESSIONS_FILE_PATH = path.join(
+  process.env.DATA_DIR || path.join(process.cwd(), 'data'),
+  'sessions.json'
+)
 
 /**
  * Represents a stored session for a chat (DM or group).
@@ -49,6 +52,7 @@ export class SessionStore {
   saveSession(chatId: string, session: ChatSession): void {
     this.sessions.set(chatId, session)
     this.persist()
+    console.log(`[sessions] Saved session for ${chatId}: ${session.sessionId.substring(0, 20)}...`)
   }
 
   /**
@@ -73,6 +77,7 @@ export class SessionStore {
    */
   private load(): void {
     if (!fs.existsSync(SESSIONS_FILE_PATH)) {
+      console.log(`[sessions] No sessions file at ${SESSIONS_FILE_PATH}, starting fresh`)
       return
     }
 
@@ -84,6 +89,7 @@ export class SessionStore {
         for (const [chatId, session] of Object.entries(data.chats)) {
           this.sessions.set(chatId, session)
         }
+        console.log(`[sessions] Loaded ${this.sessions.size} session(s) from ${SESSIONS_FILE_PATH}`)
       }
     } catch (error) {
       console.error(

@@ -220,7 +220,11 @@ export function createOrchestrator(): Orchestrator {
     }
 
     agents.set(chatId, agent)
-    console.log(`[orchestrator] Created ${type} agent for ${chatId}`)
+    if (existingSession) {
+      console.log(`[orchestrator] Resumed ${type} agent for ${chatId} (session: ${existingSession.sessionId.substring(0, 20)}...)`)
+    } else {
+      console.log(`[orchestrator] Created new ${type} agent for ${chatId}`)
+    }
     return agent
   }
 
@@ -328,6 +332,16 @@ export function createOrchestrator(): Orchestrator {
         }
       } else {
         console.log(`[agent:${chatId}] No response from agent`)
+      }
+
+      // Save session after turn completes (session ID only available after first exchange)
+      const sessionId = agent.sessionId
+      if (sessionId) {
+        sessionStore.saveSession(chatId, {
+          type: mailbox.type,
+          sessionId,
+          lastActive: new Date().toISOString(),
+        })
       }
 
     } catch (error) {

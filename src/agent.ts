@@ -215,6 +215,8 @@ export class ChatAgent {
       ...(this._sessionId ? { resume: this._sessionId } : {}),
     }
 
+    console.log(`[agent:${this.chatId}] Query options: resume=${this._sessionId || 'none'}`)
+
     // Create the query
     this.currentQuery = query({
       prompt: message,
