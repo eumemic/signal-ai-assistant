@@ -369,6 +369,7 @@ export function createOrchestrator(): Orchestrator {
    */
   function formatMessage(parsed: ParsedMessage): FormattedMessage {
     const timestamp = formatTimestamp(parsed.timestamp)
+    const rawTimestamp = parsed.timestamp
     const senderName = parsed.sourceName || parsed.source
     const senderPhone = parsed.source
 
@@ -395,6 +396,7 @@ export function createOrchestrator(): Orchestrator {
 
       return {
         timestamp,
+        rawTimestamp,
         senderName,
         senderPhone,
         text,
@@ -405,6 +407,7 @@ export function createOrchestrator(): Orchestrator {
     const reactionText = formatReactionMessage(parsed)
     return {
       timestamp,
+      rawTimestamp,
       senderName,
       senderPhone,
       text: reactionText,
@@ -446,7 +449,9 @@ export function createOrchestrator(): Orchestrator {
       if (signalCliConfig) {
         args.push('-c', signalCliConfig)
       }
-      args.push('-a', agentPhoneNumber, '-o', 'json', 'daemon', '--tcp', `localhost:${DAEMON_PORT}`)
+      // Use --receive-mode=on-connection so pending messages are delivered AFTER we connect
+      // (default is on-start, which delivers messages before TCP client connects, losing them)
+      args.push('-a', agentPhoneNumber, '-o', 'json', 'daemon', '--tcp', `localhost:${DAEMON_PORT}`, '--receive-mode=on-connection')
 
       console.log(`[daemon] Starting signal-cli daemon: signal-cli ${args.join(' ')}`)
       daemonProcess = spawn('signal-cli', args, {

@@ -3,6 +3,8 @@
  */
 export interface FormattedMessage {
   timestamp: string
+  /** Raw Unix millisecond timestamp (for reply-to feature) */
+  rawTimestamp: number
   senderName: string
   senderPhone: string
   text: string
@@ -106,10 +108,12 @@ export class Mailbox {
 
 /**
  * Formats a single message line for the batch delivery.
- * Format: [{timestamp}] {senderName} ({senderPhone}): {text}
+ * Format: [id:{rawTimestamp}] [{timestamp}] {senderName} ({senderPhone}): {text}
+ *
+ * The id:{rawTimestamp} prefix provides the message ID needed for the -q reply-to flag.
  */
 function formatMessageLine(msg: FormattedMessage): string {
-  let line = `[${msg.timestamp}] ${msg.senderName} (${msg.senderPhone}): ${msg.text}`
+  let line = `[id:${msg.rawTimestamp}] [${msg.timestamp}] ${msg.senderName} (${msg.senderPhone}): ${msg.text}`
 
   if (msg.attachmentPath) {
     line += `\n  📎 Attachment: ${msg.attachmentPath}`
