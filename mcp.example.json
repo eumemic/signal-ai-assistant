@@ -1,0 +1,13 @@
+{
+  "servers": {
+    "meme": {
+      "type": "stdio",
+      "command": "${DATA_DIR}/node_modules/.bin/meme-mcp",
+      "env": {
+        "IMGFLIP_USERNAME": "${IMGFLIP_USERNAME}",
+        "IMGFLIP_PASSWORD": "${IMGFLIP_PASSWORD}"
+      },
+      "enabled": true
+    }
+  }
+}

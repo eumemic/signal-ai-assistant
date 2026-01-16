@@ -16,6 +16,9 @@ services:
       - ANTHROPIC_MODEL
       - AGENT_NAME
       - AGENT_PHONE_NUMBER
+      # MCP server credentials (optional, used by data/mcp.json)
+      - IMGFLIP_USERNAME
+      - IMGFLIP_PASSWORD
 
 volumes:
   jarvis-workspace:
