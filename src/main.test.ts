@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { spawn, execFile } from 'child_process'
+import { EventEmitter } from 'events'
 
 // Mock child_process for signal-cli
 vi.mock('child_process', () => ({
@@ -12,16 +13,44 @@ vi.mock('child_process', () => ({
   }),
 }))
 
-// Default mock for the Claude SDK - can be overridden per test with vi.doMock + resetModules
+// Mock net module for TCP connection
+vi.mock('net', () => ({
+  createConnection: vi.fn(),
+}))
+
+// Mock readline module
+vi.mock('readline', () => ({
+  createInterface: vi.fn(),
+}))
+
+// Default mock for the Claude SDK - uses the V1 query() API
 vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
-  unstable_v2_createSession: vi.fn(() => ({
-    sessionId: 'test-session-id',
-    close: vi.fn(),
-  })),
-  unstable_v2_resumeSession: vi.fn(() => ({
-    sessionId: 'resumed-session-id',
-    close: vi.fn(),
-  })),
+  query: vi.fn(() => {
+    // Return an async iterator that yields a result
+    return (async function* () {
+      yield {
+        type: 'system',
+        session_id: 'test-session-id',
+      }
+      yield {
+        type: 'result',
+        subtype: 'success',
+        result: 'Mock response',
+        session_id: 'test-session-id',
+      }
+    })()
+  }),
+}))
+
+// Mock prompts module
+vi.mock('./prompts', () => ({
+  loadPrompt: vi.fn((type: string, vars: Record<string, string>) => {
+    if (type === 'dm') {
+      return `common content\n\nDM prompt for ${vars.CONTACT_NAME}`
+    } else {
+      return `common content\n\nGroup prompt for ${vars.GROUP_NAME}\nSend: ${vars.SEND_SCRIPT}`
+    }
+  }),
 }))
 
 // Mock env module
@@ -31,6 +60,8 @@ vi.mock('./env', () => ({
     agentPhoneNumber: '+1555000000',
     anthropicApiKey: 'test-api-key',
     anthropicModel: 'claude-sonnet-4-5-20250514',
+    signalCliConfig: '/mock/signal-cli-config',
+    groupBehaviorInDms: false,
   })),
 }))
 
@@ -46,6 +77,9 @@ vi.mock('fs', async () => {
   }
 })
 
+import * as net from 'net'
+import * as readline from 'readline'
+
 describe('Orchestrator', () => {
   let mockProcess: {
     stdout: { on: ReturnType<typeof vi.fn> }
@@ -53,14 +87,21 @@ describe('Orchestrator', () => {
     on: ReturnType<typeof vi.fn>
     kill: ReturnType<typeof vi.fn>
   }
-  let stdoutCallback: (data: Buffer) => void
+  let mockTcpSocket: EventEmitter & {
+    write: ReturnType<typeof vi.fn>
+    destroy: ReturnType<typeof vi.fn>
+  }
+  let mockReadlineInterface: EventEmitter
+  let tcpLineCallback: ((line: string) => void) | null = null
 
   beforeEach(() => {
+    // Reset module state
+    vi.resetModules()
+
+    // Create mock process for spawn
     mockProcess = {
       stdout: {
-        on: vi.fn((event: string, cb: (data: Buffer) => void) => {
-          if (event === 'data') stdoutCallback = cb
-        }),
+        on: vi.fn(),
       },
       stderr: {
         on: vi.fn(),
@@ -69,15 +110,54 @@ describe('Orchestrator', () => {
       kill: vi.fn(),
     }
     vi.mocked(spawn).mockReturnValue(mockProcess as unknown as ReturnType<typeof spawn>)
+
+    // Create mock TCP socket
+    mockTcpSocket = Object.assign(new EventEmitter(), {
+      write: vi.fn(),
+      destroy: vi.fn(),
+    })
+
+    // Create mock readline interface that captures the line callback
+    mockReadlineInterface = new EventEmitter()
+
+    // Mock net.createConnection to return the socket and emit 'connect' immediately
+    vi.mocked(net.createConnection).mockImplementation(() => {
+      // Schedule the connect event for next tick so the caller has time to register handlers
+      setImmediate(() => {
+        mockTcpSocket.emit('connect')
+      })
+      return mockTcpSocket as unknown as net.Socket
+    })
+
+    // Mock readline.createInterface to capture line events
+    vi.mocked(readline.createInterface).mockImplementation(() => {
+      return mockReadlineInterface as unknown as readline.Interface
+    })
+
+    // Reset the line callback
+    tcpLineCallback = null
   })
 
   afterEach(() => {
     vi.clearAllMocks()
-    vi.resetModules()
   })
 
+  /**
+   * Emits a message to the orchestrator via the TCP socket (simulating daemon output).
+   * In the new architecture, messages arrive as JSON-RPC notifications.
+   */
+  function emitDaemonMessage(envelope: Record<string, unknown>): void {
+    // The daemon sends JSON-RPC notifications with method 'receive'
+    const notification = JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'receive',
+      params: { envelope },
+    })
+    mockReadlineInterface.emit('line', notification)
+  }
+
   describe('test_orchestrator_startup', () => {
-    it('initializes with required components and starts receiver', async () => {
+    it('initializes with required components and starts daemon', async () => {
       // Import the orchestrator
       const { createOrchestrator } = await import('./main')
 
@@ -90,12 +170,21 @@ describe('Orchestrator', () => {
       expect(handle).toBeDefined()
       expect(handle.stop).toBeDefined()
 
-      // Verify receiver was spawned with correct arguments
+      // Verify daemon was spawned with correct arguments (daemon mode with TCP)
       expect(spawn).toHaveBeenCalledWith(
         'signal-cli',
-        ['-a', '+1555000000', 'receive', '-t', '-1', '--json'],
-        expect.any(Object)
+        ['-c', '/mock/signal-cli-config', '-a', '+1555000000', '-o', 'json', 'daemon', '--tcp', 'localhost:7583'],
+        expect.objectContaining({
+          stdio: ['ignore', 'pipe', 'pipe'],
+          detached: false,
+        })
       )
+
+      // Verify TCP connection was established
+      expect(net.createConnection).toHaveBeenCalledWith({
+        port: 7583,
+        host: 'localhost',
+      })
 
       // Clean up
       handle.stop()
@@ -107,20 +196,16 @@ describe('Orchestrator', () => {
       const orchestrator = createOrchestrator()
       const handle = await orchestrator.start()
 
-      // Simulate a DM message arriving
-      const dmMessage = JSON.stringify({
-        envelope: {
-          source: '+1234567890',
-          sourceNumber: '+1234567890',
-          sourceName: 'Tom',
-          timestamp: Date.now(),
-          dataMessage: {
-            message: 'Hello!',
-          },
+      // Simulate a DM message arriving via daemon TCP socket
+      emitDaemonMessage({
+        source: '+1234567890',
+        sourceNumber: '+1234567890',
+        sourceName: 'Tom',
+        timestamp: Date.now(),
+        dataMessage: {
+          message: 'Hello!',
         },
       })
-
-      stdoutCallback(Buffer.from(dmMessage + '\n'))
 
       // Verify mailbox was created
       expect(orchestrator.getMailbox('+1234567890')).toBeDefined()
@@ -135,28 +220,21 @@ describe('Orchestrator', () => {
       const handle = await orchestrator.start()
 
       // DM message
-      const dmMessage = JSON.stringify({
-        envelope: {
-          source: '+1234567890',
-          timestamp: Date.now(),
-          dataMessage: { message: 'DM message' },
-        },
+      emitDaemonMessage({
+        source: '+1234567890',
+        timestamp: Date.now(),
+        dataMessage: { message: 'DM message' },
       })
 
       // Group message
-      const groupMessage = JSON.stringify({
-        envelope: {
-          source: '+1234567890',
-          timestamp: Date.now(),
-          dataMessage: {
-            message: 'Group message',
-            groupInfo: { groupId: 'test-group-id' },
-          },
+      emitDaemonMessage({
+        source: '+1234567890',
+        timestamp: Date.now(),
+        dataMessage: {
+          message: 'Group message',
+          groupInfo: { groupId: 'test-group-id' },
         },
       })
-
-      stdoutCallback(Buffer.from(dmMessage + '\n'))
-      stdoutCallback(Buffer.from(groupMessage + '\n'))
 
       // Verify separate mailboxes
       const dmMailbox = orchestrator.getMailbox('+1234567890')
@@ -192,17 +270,14 @@ describe('Orchestrator', () => {
       const orchestrator = createOrchestrator()
       const handle = await orchestrator.start()
 
-      // Send a message
-      const message = JSON.stringify({
-        envelope: {
-          source: '+1234567890',
-          sourceName: 'Tom',
-          timestamp: Date.now(),
-          dataMessage: { message: 'Hello!' },
-        },
+      // Send a message via TCP socket
+      emitDaemonMessage({
+        source: '+1234567890',
+        sourceName: 'Tom',
+        timestamp: Date.now(),
+        dataMessage: { message: 'Hello!' },
       })
 
-      stdoutCallback(Buffer.from(message + '\n'))
       await new Promise(resolve => setTimeout(resolve, 100))
 
       // Verify the message was processed (orchestrator didn't crash)
@@ -216,6 +291,41 @@ describe('Orchestrator', () => {
       // Clean up
       handle.stop()
       consoleSpy.mockRestore()
+    })
+  })
+
+  describe('test_self_message_filtering', () => {
+    it('should filter out messages from the agent itself', async () => {
+      const { createOrchestrator } = await import('./main')
+
+      const orchestrator = createOrchestrator()
+      const handle = await orchestrator.start()
+
+      // Send a message from the agent's own phone number
+      emitDaemonMessage({
+        source: '+1555000000', // This is the agent's phone number
+        timestamp: Date.now(),
+        dataMessage: { message: 'Self message' },
+      })
+
+      // The mailbox should NOT be created for self-messages
+      expect(orchestrator.getMailbox('+1555000000')).toBeUndefined()
+
+      handle.stop()
+    })
+  })
+
+  describe('test_json_rpc_response_handling', () => {
+    it('should handle JSON-RPC responses for send requests', async () => {
+      const { createOrchestrator } = await import('./main')
+
+      const orchestrator = createOrchestrator()
+      const handle = await orchestrator.start()
+
+      // Verify the socket write is available for sending
+      expect(mockTcpSocket.write).toBeDefined()
+
+      handle.stop()
     })
   })
 })

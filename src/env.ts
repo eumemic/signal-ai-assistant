@@ -14,6 +14,11 @@ interface Env {
 
 let env: Env | undefined;
 
+/** Reset cached env for testing purposes */
+export function _resetEnvForTesting(): void {
+  env = undefined;
+}
+
 export function getEnv(): Env {
   if (env) {
     return env;

@@ -3,9 +3,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 describe("env", () => {
   const originalEnv = process.env;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules();
     process.env = { ...originalEnv };
+    // Reset the internal env cache before each test
+    const { _resetEnvForTesting } = await import("./env");
+    _resetEnvForTesting();
   });
 
   afterEach(() => {
