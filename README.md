@@ -1,66 +1,142 @@
 # Signal AI Assistant
 
-Signal AI Assistant integrates with large language models (LLMs) using [LangChain.js](https://github.com/hwchase17/langchainjs) and the [signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) project to create an AI-powered personal assistant within the Signal messaging app.
-
-## Overview
-
-The Signal AI Assistant project aims to leverage the capabilities of modern LLMs and the secure and private nature of Signal to provide users with an AI assistant that can perform tasks, answer questions, and provide useful information on demand.
+A Signal messaging bot powered by Claude (Anthropic) that acts as an AI-powered personal assistant. Uses native `signal-cli` for Signal protocol communication.
 
 ## Prerequisites
 
-- A Signal account and phone number
-- Access to the OpenAI API
-- Docker (for running the `signal-cli-rest-api`)
-- Node.js 20+ (recommended)
+- Node.js 22+
+- Java 21+ (required by signal-cli 0.13.2+)
+- A dedicated phone number for the bot (VoIP numbers usually don't work)
+- Anthropic API key
 
 ## Installation
 
-1. Clone the Signal AI Assistant repository:
+1. Clone the repository:
 
-   ```
+   ```bash
    git clone https://github.com/yourusername/signal-ai-assistant.git
    cd signal-ai-assistant
    ```
 
-2. Install the dependencies:
+2. Install dependencies:
 
-   ```
+   ```bash
    npm install
    ```
 
-3. Set up the [signal-cli-rest-api](https://github.com/bbernhard/signal-cli-rest-api) by following the instructions in its README.
+3. Install signal-cli (macOS):
 
-4. Create a `.env` file in the root directory and add the necessary environment variables:
-
-   ```
-   AGENT_NAME=... # the name attached to your signal account
-   AGENT_PHONE_NUMBER=... # the phone number attached to your signal account
-   SIGNAL_CLI_REST_API_URL=... # optional, defaults to http://localhost:8080
-   OPENAI_API_KEY=... # your OpenAI API key (https://platform.openai.com/account/api-keys)
-   OPENAI_MODEL=... # optional, defaults to gpt-5.2
+   ```bash
+   brew install signal-cli
    ```
 
-5. Build and start the Signal AI Assistant:
+   Or download from [signal-cli releases](https://github.com/AsamK/signal-cli/releases).
 
+4. Create a `.env` file:
+
+   ```bash
+   AGENT_NAME=Jarvis              # Display name for the bot
+   AGENT_PHONE_NUMBER=+1234567890 # Phone number in E.164 format
+   ANTHROPIC_API_KEY=sk-ant-...   # Your Anthropic API key
+
+   # Optional
+   ANTHROPIC_MODEL=claude-haiku-4-5  # Defaults to claude-haiku-4-5
+   SIGNAL_CLI_CONFIG=./signal-cli-config  # Defaults to ./signal-cli-config
    ```
-   npm run build
-   npm start
-   # Or run directly with ts-node during development:
-   npm run dev
-   ```
 
-## Testing
+## Signal Registration
 
-Unit tests use Vitest:
+Register your phone number with Signal before running the bot. This is a one-time setup.
 
+### Step 1: Get a CAPTCHA token
+
+1. Open https://signalcaptchas.org/registration/generate.html in your browser
+2. Complete the CAPTCHA challenge
+3. Open browser DevTools (F12) → Network tab
+4. Look for a request to `signalcaptcha://` - copy the full token (starts with `signalcaptcha://signal-hcaptcha.`)
+
+### Step 2: Register the phone number
+
+```bash
+signal-cli -c ./signal-cli-config -a +1234567890 register --captcha 'signalcaptcha://signal-hcaptcha.YOUR_TOKEN_HERE'
 ```
-npm test
+
+If successful, the command completes with no output. You'll receive an SMS verification code.
+
+### Step 3: Verify with SMS code
+
+```bash
+signal-cli -c ./signal-cli-config -a +1234567890 verify 123456
+```
+
+Replace `123456` with the code from the SMS.
+
+### Step 4: Set the profile name
+
+```bash
+signal-cli -c ./signal-cli-config -a +1234567890 updateProfile --given-name "Jarvis"
+```
+
+### Troubleshooting Registration
+
+**"User not registered"** - The registration didn't complete. Start from Step 1.
+
+**No SMS received** - Some VoIP numbers don't receive Signal SMS. Try voice verification:
+```bash
+signal-cli -c ./signal-cli-config -a +1234567890 register --captcha 'TOKEN' --voice
+```
+Note: Voice verification only works after a failed SMS attempt.
+
+**CAPTCHA expired** - Tokens expire quickly. Get a fresh one and retry immediately.
+
+**Rate limited** - Wait a few hours before retrying registration.
+
+## Running
+
+### Development
+
+```bash
+npm run dev
+```
+
+### Production
+
+```bash
+npm run build
+npm start
+```
+
+### Docker
+
+```bash
+# Build and run
+docker compose up --build
+
+# View logs
+docker compose logs -f
+```
+
+For Docker, place your signal-cli registration data in `./data/signal-cli/`:
+```
+data/
+  signal-cli/
+    data/
+      accounts.json
+      {account-id}/
+        ...
 ```
 
 ## Usage
 
-To interact with your Signal AI Assistant, simply send a message to the phone number associated with your assistan'ts Signal account. You can also add the assistant to group chats--in group chats, the assistant will only respond if it's @-mentioned.
+- **Direct messages**: Send any message to the bot's phone number
+- **Group chats**: Add the bot to a group and @-mention it to get a response
+
+## Testing
+
+```bash
+npm test
+```
 
 ## License
 
-Signal AI Assistant is released under the [MIT License](LICENSE).
+MIT License

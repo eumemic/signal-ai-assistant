@@ -50,12 +50,11 @@ describe("Docker Compose", () => {
     expect(dockerCompose).not.toContain("signal-cli-rest-api");
 
     // Verify required volumes
-    expect(dockerCompose).toContain("signal-data:");
     expect(dockerCompose).toContain("jarvis-workspace:");
 
-    // Verify volume mounts
-    expect(dockerCompose).toContain("/root/.local/share/signal-cli");
-    expect(dockerCompose).toContain("/home/jarvis");
+    // Verify volume mounts - data dir mounted from host, workspace as named volume
+    expect(dockerCompose).toContain("./data:/home/jarvis/data");
+    expect(dockerCompose).toContain("/home/jarvis/workspace");
 
     // Verify required environment variables are configured
     expect(dockerCompose).toContain("ANTHROPIC_API_KEY");
@@ -111,14 +110,14 @@ describe("Dockerfile", () => {
 
     const dockerfile = fs.readFileSync(dockerfilePath, "utf-8");
 
-    // Verify base image is Node 22 Alpine
-    expect(dockerfile).toMatch(/FROM\s+node:22-alpine/);
+    // Verify base image is Node 22 Debian slim with x86_64 platform
+    expect(dockerfile).toMatch(/FROM\s+--platform=linux\/amd64\s+node:22-slim/);
 
     // Verify signal-cli installation is included
     expect(dockerfile).toContain("signal-cli");
 
-    // Verify Java runtime is installed (required for signal-cli)
-    expect(dockerfile).toContain("openjdk");
+    // Verify Java 21 runtime is installed via Adoptium (required for signal-cli 0.13.2+)
+    expect(dockerfile).toContain("temurin-21-jre");
 
     // Verify workspace directories are created
     expect(dockerfile).toContain("/home/jarvis");

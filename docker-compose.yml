@@ -4,8 +4,10 @@ services:
     restart: unless-stopped
     mem_limit: 2g
     volumes:
-      - signal-data:/root/.local/share/signal-cli
-      - jarvis-workspace:/home/jarvis
+      # Mount data directory (contains signal-cli registration and sessions)
+      - ./data:/home/jarvis/data
+      # Persistent workspace for agent files
+      - jarvis-workspace:/home/jarvis/workspace
     environment:
       # See specs/1-agent-foundation.md for full environment variable documentation
       - ANTHROPIC_API_KEY
@@ -14,5 +16,4 @@ services:
       - AGENT_PHONE_NUMBER
 
 volumes:
-  signal-data:
   jarvis-workspace:
