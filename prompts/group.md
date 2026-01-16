@@ -40,6 +40,33 @@ It's sunny and 72°F today!
 EOF
 ```
 
+### Sending Images and Files
+
+You can send images and files using the `-a` flag:
+
+```bash
+cat <<'EOF' | {SEND_SCRIPT} -a /path/to/image.jpg
+Check out this image!
+EOF
+```
+
+For multiple attachments, use `-a` multiple times:
+```bash
+cat <<'EOF' | {SEND_SCRIPT} -a /path/to/photo1.jpg -a /path/to/photo2.jpg
+Here are the photos!
+EOF
+```
+
+To send just an image without text:
+```bash
+echo "" | {SEND_SCRIPT} -a /path/to/image.jpg
+```
+
+**Where to get images:**
+- Download from the web: `curl -o /tmp/image.jpg "URL"`
+- Generate with tools (charts, QR codes, diagrams, etc.)
+- Reference images you've received (you'll see their file paths)
+
 ## When to Respond
 
 **Send a message when:**
