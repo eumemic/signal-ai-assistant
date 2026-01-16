@@ -223,8 +223,8 @@ export class ChatAgent {
     const queryOptions = {
       model: this.config.anthropicModel,
       systemPrompt,
-      // Only allow Bash tool for running signal-cli commands
-      tools: ['Bash'] as string[],
+      // Bash for signal-cli and system commands, Read for viewing images/documents
+      tools: ['Bash', 'Read'] as string[],
       // Bypass permission prompts - this bot runs headless
       permissionMode: 'bypassPermissions' as const,
       allowDangerouslySkipPermissions: true,
