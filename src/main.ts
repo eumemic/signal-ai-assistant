@@ -373,11 +373,26 @@ export function createOrchestrator(): Orchestrator {
     const senderPhone = parsed.source
 
     if (parsed.type === 'text') {
+      // Build text with any attachments
+      let text = parsed.text
+
+      // Append attachment paths so agent can view them with Read tool
+      if (parsed.attachments && parsed.attachments.length > 0) {
+        for (const attachment of parsed.attachments) {
+          if (attachment.file) {
+            // Classify attachment type for display
+            const isImage = attachment.contentType.startsWith('image/')
+            const typeLabel = isImage ? 'Image' : 'Attachment'
+            text += `\n[${typeLabel}: ${attachment.file}]`
+          }
+        }
+      }
+
       return {
         timestamp,
         senderName,
         senderPhone,
-        text: parsed.text,
+        text,
       }
     }
 

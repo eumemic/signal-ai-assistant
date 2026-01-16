@@ -7,6 +7,8 @@ export interface SignalAttachment {
   contentType: string
   filename?: string
   id: string
+  /** Absolute path to the downloaded attachment file (provided by signal-cli) */
+  file?: string
 }
 
 /**
