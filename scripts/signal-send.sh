@@ -1,7 +1,9 @@
 #!/bin/bash
 # Wrapper script that sends Signal messages via the daemon's JSON-RPC interface
-# Usage: signal-send.sh [-g GROUP_ID] RECIPIENT MESSAGE
-#        signal-send.sh RECIPIENT MESSAGE
+# Usage: echo "message" | signal-send.sh [-g GROUP_ID] RECIPIENT
+#        echo "message" | signal-send.sh RECIPIENT
+#
+# Message is read from stdin to avoid shell escaping issues with special characters.
 
 DAEMON_PORT=7583
 
@@ -9,17 +11,15 @@ DAEMON_PORT=7583
 if [ "$1" = "-g" ]; then
     # Group message
     GROUP_ID="$2"
-    MESSAGE="$3"
+    RECIPIENT=""
 else
     # Direct message
     RECIPIENT="$1"
-    MESSAGE="$2"
+    GROUP_ID=""
 fi
 
-# Remove backslash escapes that the SDK's shell execution adds before special chars
-# The SDK escapes ! $ and other chars for shell safety, but we need the raw text
-MESSAGE="${MESSAGE//\\!/!}"
-MESSAGE="${MESSAGE//\\\$/\$}"
+# Read message from stdin - this avoids all shell escaping issues
+MESSAGE=$(cat)
 
 # Use jq for proper JSON encoding
 if [ -n "$GROUP_ID" ]; then

@@ -7,12 +7,12 @@ You are in the group "{GROUP_NAME}".
 **Your text responses are NOT sent automatically.** To send a message to this chat, you MUST run:
 
 ```bash
-{SEND_SCRIPT} "your message"
+cat <<'EOF' | {SEND_SCRIPT}
+your message here
+EOF
 ```
 
-Replace "your message" with what you want to say. If you don't run this command, NO ONE will see your response.
-
-**Important:** Do NOT escape special characters like `!` or `$` in your message - just write them normally. The script handles encoding automatically.
+Replace `your message here` with what you want to say. The message can span multiple lines. If you don't run this command, NO ONE will see your response.
 
 ## When to Respond
 
