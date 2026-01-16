@@ -102,11 +102,12 @@ describe('ChatAgent', () => {
       await agent.initialize()
       await agent.runTurn('Hello')
 
-      // Verify DM prompt was loaded with correct variables
+      // Verify DM prompt was loaded with correct variables (including SEND_SCRIPT for attachments)
       expect(mockLoadPrompt).toHaveBeenCalledWith('dm', {
         AGENT_PHONE_NUMBER: '+1555123456',
         CONTACT_NAME: 'Alice',
         CONTACT_PHONE: '+1234567890',
+        SEND_SCRIPT: expect.stringContaining('signal-send.sh'),
       })
     })
 
@@ -146,11 +147,12 @@ describe('ChatAgent', () => {
       await agent.initialize()
       await agent.runTurn('Hello')
 
-      // Should use phone number as name
+      // Should use phone number as name (and include SEND_SCRIPT for attachments)
       expect(mockLoadPrompt).toHaveBeenCalledWith('dm', {
         AGENT_PHONE_NUMBER: '+1555123456',
         CONTACT_NAME: '+1234567890',
         CONTACT_PHONE: '+1234567890',
+        SEND_SCRIPT: expect.stringContaining('signal-send.sh'),
       })
     })
 

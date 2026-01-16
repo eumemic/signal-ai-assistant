@@ -2,6 +2,7 @@ import { query, type Query, type SDKMessage, type HookCallback } from '@anthropi
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { loadPrompt } from './prompts.js'
+import { loadMcpServers, type McpServerConfigEntry } from './mcp.js'
 
 // Get the directory of this module for resolving script paths
 const __filename = fileURLToPath(import.meta.url)
@@ -9,6 +10,20 @@ const __dirname = path.dirname(__filename)
 
 /** Default turn timeout: 10 minutes in milliseconds */
 const DEFAULT_TURN_TIMEOUT_MS = 10 * 60 * 1000
+
+/** Cached MCP server configurations - loaded once at startup */
+let cachedMcpServers: Record<string, McpServerConfigEntry> | null = null
+
+/**
+ * Gets MCP server configurations, loading from config file on first call.
+ * Caches the result for subsequent calls.
+ */
+function getMcpServers(): Record<string, McpServerConfigEntry> {
+  if (cachedMcpServers === null) {
+    cachedMcpServers = loadMcpServers()
+  }
+  return cachedMcpServers
+}
 
 /**
  * Common options required for all agents.
@@ -135,10 +150,13 @@ export class ChatAgent {
       }
 
       console.log(`[agent:${this.chatId}] Using DM prompt`)
+      // Pass SEND_SCRIPT for attachment sending (text is auto-sent, but attachments need explicit sending)
+      const sendScript = `${sendScriptPath} ${contactPhone}`
       return loadPrompt('dm', {
         AGENT_PHONE_NUMBER: agentPhoneNumber,
         CONTACT_NAME: contactName || contactPhone,
         CONTACT_PHONE: contactPhone,
+        SEND_SCRIPT: sendScript,
       })
     }
 
@@ -220,6 +238,10 @@ export class ChatAgent {
       }
     }
 
+    // Load MCP servers from config
+    const mcpServers = getMcpServers()
+    const hasMcpServers = Object.keys(mcpServers).length > 0
+
     // Build query options
     const queryOptions = {
       model: this.config.anthropicModel,
@@ -235,9 +257,11 @@ export class ChatAgent {
       ...(isGroupBehavior
         ? { hooks: { UserPromptSubmit: [{ hooks: [groupModePromptHook] }] } }
         : {}),
+      // Add MCP servers if configured
+      ...(hasMcpServers ? { mcpServers } : {}),
     }
 
-    console.log(`[agent:${this.chatId}] Query options: resume=${this._sessionId || 'none'}`)
+    console.log(`[agent:${this.chatId}] Query options: resume=${this._sessionId || 'none'}, mcpServers=${Object.keys(mcpServers).join(',') || 'none'}`)
 
     // Create the query
     this.currentQuery = query({
