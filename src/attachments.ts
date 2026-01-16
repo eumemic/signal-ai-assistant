@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import type { SignalAttachment } from './receiver'
+import type { SignalAttachment } from './receiver.js'
 
 /**
  * Attachment classification based on MIME type.

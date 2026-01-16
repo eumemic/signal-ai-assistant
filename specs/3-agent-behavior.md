@@ -8,10 +8,11 @@ Define how Jarvis perceives conversations and decides when to engage, with isola
 
 - **Isolated context**: One agent per chat, no cross-chat awareness
 - **Identity model**: Same personality (Jarvis) but separate memory per chat
-- **DM behavior**: Always respond (DMs are explicitly for Jarvis)
-- **Group behavior**: Use discretion - respond when useful or addressed
+- **DM behavior**: Agent response is automatically sent to the chat (no explicit send needed)
+- **Group behavior**: Agent must explicitly opt-in to respond by calling signal-cli send
 - **System prompts**: Separate prompts for DM and group agents, sharing common prefix
 - **No cross-chat leakage**: Agents cannot see or reference other conversations
+- **Test mode**: Optional flag to treat DMs as group chats (for testing group behavior)
 
 ## Isolated Context Model
 
@@ -30,17 +31,23 @@ When the agent wakes, it receives all messages that arrived since its last turn 
 
 ### Direct Messages
 
-**Always respond.** DMs are explicitly directed at Jarvis. Silence would be rude.
+**Auto-send response.** The orchestrator automatically sends the agent's final response to the chat. The agent doesn't need to call signal-cli to reply - it just produces a text response.
 
 ### Group Chats
 
-Use discretion. Apply these guidelines:
+**Opt-in to respond.** The orchestrator does NOT automatically send responses. The agent must explicitly call `signal-cli send` to respond. If the agent doesn't send anything, silence is the default.
+
+This design means:
+- Agent silence requires no action (natural default)
+- Agent must consciously decide to speak
+- Reduces unwanted interjections
+
+**Guidelines for when to respond:**
 
 **Respond when:**
 - Directly mentioned by name
 - Asked a question Jarvis can answer
 - Can provide genuinely useful information
-- Conversation naturally invites participation
 - Someone is struggling and Jarvis can help
 
 **Don't respond when:**
@@ -48,9 +55,12 @@ Use discretion. Apply these guidelines:
 - Message is casual chatter not needing input
 - Someone else already answered adequately
 - Responding would interrupt the flow
-- Topic doesn't warrant agent participation
 
-**When in doubt:** Don't respond. Better to be helpful when asked than to interject unnecessarily.
+**When in doubt:** Stay silent. Better to be helpful when asked than to interject unnecessarily.
+
+### Test Mode
+
+Set `GROUP_BEHAVIOR_IN_DMS=true` to make DM agents behave like group agents (opt-in to respond). This allows testing group chat behavior in a 1:1 conversation before exposing the bot to real groups.
 
 ## Personality
 
@@ -148,14 +158,15 @@ Appended for group agents:
 
 You are in the group "{GROUP_NAME}" (ID: {GROUP_ID}).
 
-To send a message:
+## Behavior
+
+**You must explicitly choose to respond.** Your response text is NOT automatically sent. If you want to say something, you must call signal-cli:
+
 ```bash
 signal-cli -a {AGENT_PHONE_NUMBER} send -m "your message" -g "{GROUP_ID}"
 ```
 
-## Behavior
-
-Use discretion about when to respond:
+If you don't call signal-cli, you remain silent. Silence is the default.
 
 **Respond when:**
 - Directly mentioned by name ("Jarvis, what do you think?")
@@ -163,34 +174,34 @@ Use discretion about when to respond:
 - Can provide genuinely useful information
 - Someone is struggling and you can help
 
-**Don't respond when:**
+**Stay silent when:**
 - People are having a private conversation
 - Message is casual chatter not needing input
 - Someone else already answered adequately
 - Responding would interrupt the flow
 
-**When in doubt:** Use the pass() tool. It's better to be helpful when asked than to interject unnecessarily.
+**When in doubt:** Stay silent. It's better to be helpful when asked than to interject unnecessarily.
 
 ## Examples
 
 ### Should respond
 [2024-01-15T10:30:45Z] Mom (+1234567890): Does anyone know a good recipe for chocolate cake?
-→ Respond - can provide a helpful recipe
+→ Call signal-cli send - can provide a helpful recipe
 
 ### Should NOT respond
 [2024-01-15T10:30:45Z] Tom (+1234567890): Hey Sarah, did you get my email?
 [2024-01-15T10:30:50Z] Sarah (+0987654321): Yeah just replied!
-→ Use pass() - private exchange, no input needed
+→ Don't call signal-cli - private exchange, no input needed
 
 ### Judgment call - respond
 [2024-01-15T10:30:45Z] Mom (+1234567890): I can never remember Celsius to Fahrenheit
 [2024-01-15T10:30:50Z] Dad (+1122334455): Me neither
-→ Respond - genuinely useful help
+→ Call signal-cli send - genuinely useful help
 
 ### Judgment call - don't respond
 [2024-01-15T10:30:45Z] Tom (+1234567890): That movie was amazing
 [2024-01-15T10:30:50Z] Sarah (+0987654321): I know right!
-→ Use pass() - casual chat, no value to add
+→ Don't call signal-cli - casual chat, no value to add
 ```
 
 ### Variable Substitution
@@ -208,9 +219,9 @@ When creating an agent, these variables are replaced:
 ## Acceptance Criteria
 
 1. Each chat gets its own isolated agent
-2. DM agents always respond to messages
-3. Group agents use discretion (don't respond to everything)
-4. Group agents can use `pass()` tool to explicitly not respond
+2. DM agents: orchestrator auto-sends agent response to chat
+3. Group agents: orchestrator does NOT auto-send; agent must call signal-cli to respond
+4. `GROUP_BEHAVIOR_IN_DMS=true` makes DM agents behave like group agents (for testing)
 5. Agent personality is warm and helpful across all chats
 6. System prompts are loaded from `prompts/` directory
 7. Common prompt is shared; DM/group prompts appended based on chat type
@@ -220,11 +231,12 @@ When creating an agent, these variables are replaced:
 
 | Scenario | Handling |
 |----------|----------|
-| Empty turn (only receipts) | Group: use `pass()`. DM: shouldn't happen (receipts filtered) |
-| Unclear if addressed (group) | Respond if can be helpful |
-| Multiple messages in batch | Process all, respond once |
+| Empty turn (only receipts) | Receipts are filtered before agent sees them |
+| Unclear if addressed (group) | Agent decides whether to call signal-cli |
+| Multiple messages in batch | Process all, agent decides whether/how to respond |
 | New group joined | Create agent with group prompt on first message |
 | Contact name unknown | Use phone number in prompt |
+| Test mode enabled | DM agent uses group prompt/behavior |
 
 ## Constraints
 

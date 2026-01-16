@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ChatAgent, AgentOptions } from './agent'
 
-// Mock the SDK
+// Mock the SDK - now using V1 query() API
 vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
-  unstable_v2_createSession: vi.fn(),
-  unstable_v2_resumeSession: vi.fn(),
+  query: vi.fn(),
 }))
 
 // Mock prompts module
@@ -13,21 +12,16 @@ vi.mock('./prompts', () => ({
     if (type === 'dm') {
       return `common content\n\nDM prompt for ${vars.CONTACT_NAME}`
     } else {
-      return `common content\n\nGroup prompt for ${vars.GROUP_NAME}`
+      return `common content\n\nGroup prompt for ${vars.GROUP_NAME}\nSend: ${vars.SEND_SCRIPT}`
     }
   }),
 }))
 
-
-import {
-  unstable_v2_createSession,
-  unstable_v2_resumeSession,
-} from '@anthropic-ai/claude-agent-sdk'
+import { query } from '@anthropic-ai/claude-agent-sdk'
 import { loadPrompt } from './prompts'
 
 describe('ChatAgent', () => {
-  const mockCreateSession = vi.mocked(unstable_v2_createSession)
-  const mockResumeSession = vi.mocked(unstable_v2_resumeSession)
+  const mockQuery = vi.mocked(query)
   const mockLoadPrompt = vi.mocked(loadPrompt)
 
   const defaultOptions: AgentOptions = {
@@ -35,20 +29,20 @@ describe('ChatAgent', () => {
     anthropicModel: 'claude-sonnet-4-5-20250514',
   }
 
-  function createMockSession(sessionId: string) {
-    return {
-      sessionId,
-      send: vi.fn().mockResolvedValue(undefined),
-      stream: vi.fn().mockReturnValue((async function* () {
-        // Default: immediately yield a success result
-        yield {
-          type: 'result',
-          subtype: 'success',
-          result: 'Mock response',
-        }
-      })()),
-      close: vi.fn(),
-    }
+  function createMockQueryIterator(sessionId: string, result: string = 'Mock response') {
+    const iterator = (async function* () {
+      yield {
+        type: 'system',
+        session_id: sessionId,
+      }
+      yield {
+        type: 'result',
+        subtype: 'success',
+        result,
+        session_id: sessionId,
+      }
+    })()
+    return iterator
   }
 
   beforeEach(() => {
@@ -61,8 +55,7 @@ describe('ChatAgent', () => {
 
   describe('Agent initialization and prompt loading', () => {
     it('should create a DM agent with dm.md prompt', async () => {
-      const mockSession = createMockSession('session_dm_123')
-      mockCreateSession.mockReturnValue(mockSession as any)
+      mockQuery.mockReturnValue(createMockQueryIterator('session_dm_123') as any)
 
       const agent = new ChatAgent({
         chatId: '+1234567890',
@@ -74,27 +67,13 @@ describe('ChatAgent', () => {
 
       await agent.initialize()
 
-      // Verify DM prompt was loaded with correct variables
-      expect(mockLoadPrompt).toHaveBeenCalledWith('dm', {
-        AGENT_PHONE_NUMBER: '+1555123456',
-        CONTACT_NAME: 'Alice',
-        CONTACT_PHONE: '+1234567890',
-      })
-
-      // Verify session was created with the prompt
-      expect(mockCreateSession).toHaveBeenCalledWith(
-        expect.objectContaining({
-          model: 'claude-sonnet-4-5-20250514',
-        })
-      )
-
-      expect(agent.sessionId).toBe('session_dm_123')
+      // Initialize doesn't load prompt - it's loaded on runTurn
+      // Just verify agent was created correctly
+      expect(agent.chatId).toBe('+1234567890')
+      expect(agent.type).toBe('dm')
     })
 
-    it('should create a group agent with group.md prompt', async () => {
-      const mockSession = createMockSession('session_group_456')
-      mockCreateSession.mockReturnValue(mockSession as any)
-
+    it('should create a group agent', async () => {
       const agent = new ChatAgent({
         chatId: 'Z3JvdXBfYWJjMTIz==',
         type: 'group',
@@ -105,19 +84,56 @@ describe('ChatAgent', () => {
 
       await agent.initialize()
 
-      // Verify group prompt was loaded with correct variables
-      expect(mockLoadPrompt).toHaveBeenCalledWith('group', {
-        AGENT_PHONE_NUMBER: '+1555123456',
-        GROUP_NAME: 'Family Chat',
-        GROUP_ID: 'Z3JvdXBfYWJjMTIz==',
+      expect(agent.chatId).toBe('Z3JvdXBfYWJjMTIz==')
+      expect(agent.type).toBe('group')
+    })
+
+    it('should load DM prompt with correct variables on runTurn', async () => {
+      mockQuery.mockReturnValue(createMockQueryIterator('session_dm_123') as any)
+
+      const agent = new ChatAgent({
+        chatId: '+1234567890',
+        type: 'dm',
+        contactName: 'Alice',
+        contactPhone: '+1234567890',
+        ...defaultOptions,
       })
 
-      expect(agent.sessionId).toBe('session_group_456')
+      await agent.initialize()
+      await agent.runTurn('Hello')
+
+      // Verify DM prompt was loaded with correct variables
+      expect(mockLoadPrompt).toHaveBeenCalledWith('dm', {
+        AGENT_PHONE_NUMBER: '+1555123456',
+        CONTACT_NAME: 'Alice',
+        CONTACT_PHONE: '+1234567890',
+      })
+    })
+
+    it('should load group prompt with SEND_SCRIPT variable on runTurn', async () => {
+      mockQuery.mockReturnValue(createMockQueryIterator('session_group_456') as any)
+
+      const agent = new ChatAgent({
+        chatId: 'Z3JvdXBfYWJjMTIz==',
+        type: 'group',
+        groupName: 'Family Chat',
+        groupId: 'Z3JvdXBfYWJjMTIz==',
+        ...defaultOptions,
+      })
+
+      await agent.initialize()
+      await agent.runTurn('Hello')
+
+      // Verify group prompt was loaded with SEND_SCRIPT variable
+      expect(mockLoadPrompt).toHaveBeenCalledWith('group', expect.objectContaining({
+        AGENT_PHONE_NUMBER: '+1555123456',
+        GROUP_NAME: 'Family Chat',
+        SEND_SCRIPT: expect.stringContaining('signal-send.sh'),
+      }))
     })
 
     it('should use phone number as contact name when not provided for DM', async () => {
-      const mockSession = createMockSession('session_dm_789')
-      mockCreateSession.mockReturnValue(mockSession as any)
+      mockQuery.mockReturnValue(createMockQueryIterator('session_dm_789') as any)
 
       const agent = new ChatAgent({
         chatId: '+1234567890',
@@ -128,6 +144,7 @@ describe('ChatAgent', () => {
       })
 
       await agent.initialize()
+      await agent.runTurn('Hello')
 
       // Should use phone number as name
       expect(mockLoadPrompt).toHaveBeenCalledWith('dm', {
@@ -138,8 +155,7 @@ describe('ChatAgent', () => {
     })
 
     it('should use group ID as name when group name not provided', async () => {
-      const mockSession = createMockSession('session_group_unknown')
-      mockCreateSession.mockReturnValue(mockSession as any)
+      mockQuery.mockReturnValue(createMockQueryIterator('session_group_unknown') as any)
 
       const agent = new ChatAgent({
         chatId: 'Z3JvdXBfdW5rbm93bg==',
@@ -150,17 +166,16 @@ describe('ChatAgent', () => {
       })
 
       await agent.initialize()
+      await agent.runTurn('Hello')
 
-      expect(mockLoadPrompt).toHaveBeenCalledWith('group', {
+      expect(mockLoadPrompt).toHaveBeenCalledWith('group', expect.objectContaining({
         AGENT_PHONE_NUMBER: '+1555123456',
         GROUP_NAME: 'Z3JvdXBfdW5rbm93bg==',
-        GROUP_ID: 'Z3JvdXBfdW5rbm93bg==',
-      })
+      }))
     })
 
-    it('should resume existing session when session ID provided', async () => {
-      const mockSession = createMockSession('existing_session_123')
-      mockResumeSession.mockReturnValue(mockSession as any)
+    it('should resume existing session via resume option', async () => {
+      mockQuery.mockReturnValue(createMockQueryIterator('existing_session_123') as any)
 
       const agent = new ChatAgent({
         chatId: '+1234567890',
@@ -172,54 +187,20 @@ describe('ChatAgent', () => {
       })
 
       await agent.initialize()
+      await agent.runTurn('Hello')
 
-      // Should resume, not create
-      expect(mockResumeSession).toHaveBeenCalledWith(
-        'existing_session_123',
-        expect.objectContaining({
-          model: 'claude-sonnet-4-5-20250514',
-        })
-      )
-      expect(mockCreateSession).not.toHaveBeenCalled()
-    })
-
-    it('should create fresh session if resume fails', async () => {
-      const mockNewSession = createMockSession('new_session_after_fail')
-      mockResumeSession.mockImplementation(() => {
-        throw new Error('Session not found')
-      })
-      mockCreateSession.mockReturnValue(mockNewSession as any)
-
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-      const agent = new ChatAgent({
-        chatId: '+1234567890',
-        type: 'dm',
-        contactName: 'Alice',
-        contactPhone: '+1234567890',
-        existingSessionId: 'stale_session_123',
-        ...defaultOptions,
-      })
-
-      await agent.initialize()
-
-      // Should have warned about the failure
-      expect(consoleSpy).toHaveBeenCalled()
-
-      // Should have fallen back to creating a new session
-      expect(mockCreateSession).toHaveBeenCalled()
-      expect(agent.sessionId).toBe('new_session_after_fail')
-
-      consoleSpy.mockRestore()
+      // Should pass resume option to query
+      expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({
+        options: expect.objectContaining({
+          resume: 'existing_session_123',
+        }),
+      }))
     })
 
     it('should maintain separate sessions for different chat IDs', async () => {
-      const dmSession = createMockSession('dm_session_111')
-      const groupSession = createMockSession('group_session_222')
-
-      mockCreateSession
-        .mockReturnValueOnce(dmSession as any)
-        .mockReturnValueOnce(groupSession as any)
+      mockQuery
+        .mockReturnValueOnce(createMockQueryIterator('dm_session_111') as any)
+        .mockReturnValueOnce(createMockQueryIterator('group_session_222') as any)
 
       const dmAgent = new ChatAgent({
         chatId: '+1234567890',
@@ -240,45 +221,19 @@ describe('ChatAgent', () => {
       await dmAgent.initialize()
       await groupAgent.initialize()
 
+      await dmAgent.runTurn('DM message')
+      await groupAgent.runTurn('Group message')
+
       // Each agent has its own session
       expect(dmAgent.sessionId).toBe('dm_session_111')
       expect(groupAgent.sessionId).toBe('group_session_222')
       expect(dmAgent.sessionId).not.toBe(groupAgent.sessionId)
     })
-
-    it('should include common.md prefix in both prompt types', async () => {
-      const mockSession = createMockSession('session_test')
-      mockCreateSession.mockReturnValue(mockSession as any)
-
-      // The loadPrompt mock already simulates common + type-specific
-      const dmAgent = new ChatAgent({
-        chatId: '+1234567890',
-        type: 'dm',
-        contactName: 'Alice',
-        contactPhone: '+1234567890',
-        ...defaultOptions,
-      })
-
-      await dmAgent.initialize()
-
-      // Verify loadPrompt was called - it combines common.md internally
-      expect(mockLoadPrompt).toHaveBeenCalledWith('dm', expect.any(Object))
-    })
   })
 
   describe('test_turn_timeout', () => {
     it('should complete turn successfully when under timeout', async () => {
-      const mockSession = createMockSession('session_timeout_test')
-      // Mock send and stream for a successful response
-      mockSession.send = vi.fn().mockResolvedValue(undefined)
-      mockSession.stream = vi.fn().mockReturnValue((async function* () {
-        yield {
-          type: 'result',
-          subtype: 'success',
-          result: 'Hello!',
-        }
-      })())
-      mockCreateSession.mockReturnValue(mockSession as any)
+      mockQuery.mockReturnValue(createMockQueryIterator('session_timeout_test', 'Hello!') as any)
 
       const agent = new ChatAgent({
         chatId: '+1234567890',
@@ -293,20 +248,18 @@ describe('ChatAgent', () => {
       const result = await agent.runTurn('Test message')
       expect(result.timedOut).toBe(false)
       expect(result.response).toBe('Hello!')
-      expect(mockSession.send).toHaveBeenCalledWith('Test message')
+      expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({
+        prompt: 'Test message',
+      }))
     })
 
     it('should timeout after 10 minutes and log timeout', async () => {
       vi.useFakeTimers()
 
-      const mockSession = createMockSession('session_timeout_test')
-      // Create a stream that never yields (hangs forever)
-      mockSession.send = vi.fn().mockResolvedValue(undefined)
-      mockSession.stream = vi.fn().mockReturnValue((async function* () {
-        // Never yield - simulate a hanging stream
-        await new Promise(() => {})
-      })())
-      mockCreateSession.mockReturnValue(mockSession as any)
+      // Create a query that never yields a result
+      mockQuery.mockReturnValue((async function* () {
+        await new Promise(() => {}) // Never resolves
+      })() as any)
 
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
@@ -344,15 +297,14 @@ describe('ChatAgent', () => {
     it('should not crash orchestrator on timeout (resilience)', async () => {
       vi.useFakeTimers()
 
-      const mockSession = createMockSession('session_resilience')
-      // First call: stream hangs forever
-      mockSession.send = vi.fn().mockResolvedValue(undefined)
-      mockSession.stream = vi.fn().mockReturnValueOnce((async function* () {
-        await new Promise(() => {}) // Never yields
-      })())
-      mockCreateSession.mockReturnValue(mockSession as any)
-
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      // First call: query hangs forever
+      mockQuery.mockReturnValueOnce((async function* () {
+        await new Promise(() => {}) // Never yields
+      })() as any)
+      // Second call: query returns immediately
+      mockQuery.mockReturnValueOnce(createMockQueryIterator('session_2', 'Back online!') as any)
 
       const agent = new ChatAgent({
         chatId: '+1234567890',
@@ -370,14 +322,7 @@ describe('ChatAgent', () => {
       const result1 = await turn1Promise
 
       // Agent should still be usable after timeout
-      // Second call: stream returns immediately
-      mockSession.stream = vi.fn().mockReturnValue((async function* () {
-        yield {
-          type: 'result',
-          subtype: 'success',
-          result: 'Back online!',
-        }
-      })())
+      vi.useRealTimers()
       const result2 = await agent.runTurn('Message 2')
 
       expect(result1.timedOut).toBe(true)
@@ -385,18 +330,14 @@ describe('ChatAgent', () => {
       expect(result2.response).toBe('Back online!')
 
       consoleSpy.mockRestore()
-      vi.useRealTimers()
     })
 
     it('should use default 10-minute timeout', async () => {
       vi.useFakeTimers()
 
-      const mockSession = createMockSession('session_default_timeout')
-      mockSession.send = vi.fn().mockResolvedValue(undefined)
-      mockSession.stream = vi.fn().mockReturnValue((async function* () {
+      mockQuery.mockReturnValue((async function* () {
         await new Promise(() => {}) // Never yields
-      })())
-      mockCreateSession.mockReturnValue(mockSession as any)
+      })() as any)
 
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
@@ -429,12 +370,9 @@ describe('ChatAgent', () => {
     it('should allow custom timeout override for testing', async () => {
       vi.useFakeTimers()
 
-      const mockSession = createMockSession('session_custom_timeout')
-      mockSession.send = vi.fn().mockResolvedValue(undefined)
-      mockSession.stream = vi.fn().mockReturnValue((async function* () {
+      mockQuery.mockReturnValue((async function* () {
         await new Promise(() => {}) // Never yields
-      })())
-      mockCreateSession.mockReturnValue(mockSession as any)
+      })() as any)
 
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
@@ -462,31 +400,10 @@ describe('ChatAgent', () => {
   })
 
   describe('test_agent_crash_isolation', () => {
-    it('should throw error on initialization failure for orchestrator to catch', async () => {
-      // Simulate SDK initialization failure
-      mockCreateSession.mockImplementation(() => {
-        throw new Error('SDK initialization failed')
-      })
-
-      const agent = new ChatAgent({
-        chatId: '+1234567890',
-        type: 'dm',
-        contactName: 'Alice',
-        contactPhone: '+1234567890',
-        ...defaultOptions,
-      })
-
-      // Agent initialization should propagate the error
-      await expect(agent.initialize()).rejects.toThrow('SDK initialization failed')
-    })
-
-    it('should throw error on turn failure when stream throws', async () => {
-      const mockSession = createMockSession('session_crash')
-      mockSession.send = vi.fn().mockResolvedValue(undefined)
-      mockSession.stream = vi.fn().mockReturnValue((async function* () {
-        throw new Error('Stream crashed unexpectedly')
-      })())
-      mockCreateSession.mockReturnValue(mockSession as any)
+    it('should throw error on turn failure when query throws', async () => {
+      mockQuery.mockReturnValue((async function* () {
+        throw new Error('Query crashed unexpectedly')
+      })() as any)
 
       const agent = new ChatAgent({
         chatId: '+1234567890',
@@ -499,38 +416,16 @@ describe('ChatAgent', () => {
       await agent.initialize()
 
       // Turn should propagate the error for orchestrator to handle
-      await expect(agent.runTurn('Test message')).rejects.toThrow('Stream crashed unexpectedly')
+      await expect(agent.runTurn('Test message')).rejects.toThrow('Query crashed unexpectedly')
     })
 
-    it('should throw error when send() fails', async () => {
-      const mockSession = createMockSession('session_send_crash')
-      mockSession.send = vi.fn().mockRejectedValue(new Error('Send failed'))
-      mockCreateSession.mockReturnValue(mockSession as any)
-
-      const agent = new ChatAgent({
-        chatId: '+1234567890',
-        type: 'dm',
-        contactName: 'Alice',
-        contactPhone: '+1234567890',
-        ...defaultOptions,
-      })
-
-      await agent.initialize()
-
-      // Turn should propagate the error for orchestrator to handle
-      await expect(agent.runTurn('Test message')).rejects.toThrow('Send failed')
-    })
-
-    it('should allow agent to be reinitialized after crash', async () => {
-      // First initialization fails
-      mockCreateSession.mockImplementationOnce(() => {
+    it('should allow agent to run multiple turns after recovery', async () => {
+      // First query fails
+      mockQuery.mockReturnValueOnce((async function* () {
         throw new Error('Transient failure')
-      })
-      // Second initialization succeeds
-      const mockSession = createMockSession('session_recovered')
-      mockCreateSession.mockReturnValueOnce(mockSession as any)
-
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      })() as any)
+      // Second query succeeds
+      mockQuery.mockReturnValueOnce(createMockQueryIterator('session_recovered', 'Recovered!') as any)
 
       const agent = new ChatAgent({
         chatId: '+1234567890',
@@ -540,40 +435,57 @@ describe('ChatAgent', () => {
         ...defaultOptions,
       })
 
-      // First init fails
-      await expect(agent.initialize()).rejects.toThrow('Transient failure')
-
-      // Second init succeeds - agent can be recreated
       await agent.initialize()
-      expect(agent.sessionId).toBe('session_recovered')
 
-      consoleSpy.mockRestore()
+      // First turn fails
+      await expect(agent.runTurn('First')).rejects.toThrow('Transient failure')
+
+      // Second turn succeeds - agent can recover
+      const result = await agent.runTurn('Second')
+      expect(result.response).toBe('Recovered!')
+    })
+  })
+
+  describe('useGroupBehavior option', () => {
+    it('should use group prompt for DM when useGroupBehavior is true', async () => {
+      mockQuery.mockReturnValue(createMockQueryIterator('session_test') as any)
+
+      const agent = new ChatAgent({
+        chatId: '+1234567890',
+        type: 'dm',
+        contactName: 'Alice',
+        contactPhone: '+1234567890',
+        useGroupBehavior: true,
+        ...defaultOptions,
+      })
+
+      await agent.initialize()
+      await agent.runTurn('Hello')
+
+      // Should load group prompt instead of dm prompt
+      expect(mockLoadPrompt).toHaveBeenCalledWith('group', expect.objectContaining({
+        AGENT_PHONE_NUMBER: '+1555123456',
+        GROUP_NAME: expect.stringContaining('DM with'),
+        SEND_SCRIPT: expect.stringContaining('signal-send.sh'),
+      }))
     })
 
-    it('should close existing session before reinitializing', async () => {
-      const mockSession1 = createMockSession('session_1')
-      const mockSession2 = createMockSession('session_2')
-      mockCreateSession
-        .mockReturnValueOnce(mockSession1 as any)
-        .mockReturnValueOnce(mockSession2 as any)
+    it('should use dm prompt for DM when useGroupBehavior is false', async () => {
+      mockQuery.mockReturnValue(createMockQueryIterator('session_test') as any)
 
       const agent = new ChatAgent({
         chatId: '+1234567890',
         type: 'dm',
         contactName: 'Alice',
         contactPhone: '+1234567890',
+        useGroupBehavior: false,
         ...defaultOptions,
       })
 
       await agent.initialize()
-      expect(agent.sessionId).toBe('session_1')
+      await agent.runTurn('Hello')
 
-      // Reinitialize (as orchestrator would do after crash)
-      await agent.initialize()
-
-      // Old session should have been closed
-      expect(mockSession1.close).toHaveBeenCalled()
-      expect(agent.sessionId).toBe('session_2')
+      expect(mockLoadPrompt).toHaveBeenCalledWith('dm', expect.any(Object))
     })
   })
 })

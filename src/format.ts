@@ -1,4 +1,4 @@
-import { ParsedTextMessage, ParsedReactionMessage } from './receiver'
+import { ParsedTextMessage, ParsedReactionMessage } from './receiver.js'
 
 /**
  * Formats a Signal timestamp (Unix milliseconds) as ISO 8601.

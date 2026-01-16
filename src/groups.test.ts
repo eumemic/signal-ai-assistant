@@ -72,7 +72,7 @@ describe('GroupCache (test_group_name_resolution)', () => {
 
       expect(execFile).toHaveBeenCalledWith(
         'signal-cli',
-        ['-a', '+1555123456', 'listGroups', '-d', '-o', 'json'],
+        ['-a', '+1555123456', '-o', 'json', 'listGroups', '-d'],
         { encoding: 'utf8' },
         expect.any(Function)
       )

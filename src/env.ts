@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import path from "path";
 
 dotenv.config();
 
@@ -7,6 +8,8 @@ interface Env {
   agentPhoneNumber: string;
   anthropicApiKey: string;
   anthropicModel: string;
+  signalCliConfig?: string;
+  groupBehaviorInDms: boolean;
 }
 
 let env: Env | undefined;
@@ -20,7 +23,9 @@ export function getEnv(): Env {
     agentName: required("AGENT_NAME"),
     agentPhoneNumber: required("AGENT_PHONE_NUMBER"),
     anthropicApiKey: required("ANTHROPIC_API_KEY"),
-    anthropicModel: optional("ANTHROPIC_MODEL") || "claude-sonnet-4-5-20250514",
+    anthropicModel: optional("ANTHROPIC_MODEL") || "claude-sonnet-4-5-20250929",
+    signalCliConfig: path.resolve(optional("SIGNAL_CLI_CONFIG") || "./signal-cli-config"),
+    groupBehaviorInDms: optional("GROUP_BEHAVIOR_IN_DMS") === "true",
   };
 
   return env;

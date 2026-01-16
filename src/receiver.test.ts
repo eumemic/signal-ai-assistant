@@ -308,7 +308,7 @@ describe('createReceiver', () => {
 
     expect(spawn).toHaveBeenCalledWith(
       'signal-cli',
-      ['-a', '+1555123456', 'receive', '-t', '-1', '--json'],
+      ['-a', '+1555123456', '-o', 'json', 'receive', '-t', '-1'],
       { stdio: ['ignore', 'pipe', 'pipe'] }
     )
   })

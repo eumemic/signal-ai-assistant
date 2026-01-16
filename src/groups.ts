@@ -44,15 +44,23 @@ export interface GroupCache {
  * - When unknown group encountered: getNameWithRefresh() triggers a reload
  *
  * @param agentPhoneNumber - The phone number to use with signal-cli
+ * @param signalCliConfig - Optional path to signal-cli config directory
  */
-export function createGroupCache(agentPhoneNumber: string): GroupCache {
+export function createGroupCache(agentPhoneNumber: string, signalCliConfig?: string): GroupCache {
   const cache = new Map<string, string>()
 
   function fetchGroups(): Promise<SignalGroup[]> {
     return new Promise((resolve) => {
+      // Build args: config path (optional), account, output format, then subcommand
+      const args: string[] = []
+      if (signalCliConfig) {
+        args.push('-c', signalCliConfig)
+      }
+      args.push('-a', agentPhoneNumber, '-o', 'json', 'listGroups', '-d')
+
       execFile(
         'signal-cli',
-        ['-a', agentPhoneNumber, 'listGroups', '-d', '-o', 'json'],
+        args,
         { encoding: 'utf8' },
         (error, stdout) => {
           if (error) {

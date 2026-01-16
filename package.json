@@ -2,9 +2,10 @@
   "name": "signal-ai-assistant",
   "version": "0.0.1",
   "description": "An LLM-powered Signal assistant",
-  "main": "src/main.ts",
+  "type": "module",
+  "main": "dist/main.js",
   "scripts": {
-    "dev": "ts-node src/main.ts",
+    "dev": "node --import tsx src/main.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "test": "vitest run",
@@ -21,7 +22,7 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "husky": "^9.1.7",
-    "ts-node": "^10.9.1",
+    "tsx": "^4.7.0",
     "vitest": "^1.0.0"
   },
   "engines": {

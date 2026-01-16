@@ -154,6 +154,8 @@ export function parseSignalMessage(envelope: SignalEnvelope): ParsedMessage | nu
 export interface ReceiverOptions {
   /** The agent's phone number in E.164 format */
   agentPhoneNumber: string
+  /** Optional path to signal-cli config directory */
+  signalCliConfig?: string
   /** Called when a valid message is received */
   onMessage: (message: ParsedMessage) => void
   /** Called when the receiver process closes */
@@ -183,13 +185,16 @@ export interface ReceiverHandle {
  * - Malformed JSON lines are logged and skipped
  */
 export function createReceiver(options: ReceiverOptions): ReceiverHandle {
-  const { agentPhoneNumber, onMessage, onClose, onError } = options
+  const { agentPhoneNumber, signalCliConfig, onMessage, onClose, onError } = options
 
-  const proc = spawn(
-    'signal-cli',
-    ['-a', agentPhoneNumber, 'receive', '-t', '-1', '--json'],
-    { stdio: ['ignore', 'pipe', 'pipe'] }
-  )
+  // Build args: config path (optional), account, output format, then subcommand
+  const args: string[] = []
+  if (signalCliConfig) {
+    args.push('-c', signalCliConfig)
+  }
+  args.push('-a', agentPhoneNumber, '-o', 'json', 'receive', '-t', '-1')
+
+  const proc = spawn('signal-cli', args, { stdio: ['ignore', 'pipe', 'pipe'] })
 
   let buffer = ''
 

@@ -29,12 +29,10 @@ describe("prompts", () => {
       expect(content).toContain("Proactive when genuinely useful");
     });
 
-    it("contains signal-cli instructions", () => {
+    it("contains signal operations section", () => {
       const content = fs.readFileSync(commonPromptPath, "utf-8");
-      expect(content).toContain("signal-cli");
+      expect(content).toContain("Signal Operations");
       expect(content).toContain("{AGENT_PHONE_NUMBER}");
-      expect(content).toContain("send -m");
-      expect(content).toContain("sendReaction");
     });
 
     it("contains constraint about not running signal-cli receive", () => {
@@ -82,36 +80,28 @@ describe("prompts", () => {
       expect(fs.existsSync(groupPromptPath)).toBe(true);
     });
 
-    it("contains discretion guidelines", () => {
+    it("contains when to respond guidelines", () => {
       const content = fs.readFileSync(groupPromptPath, "utf-8");
-      expect(content).toMatch(/respond\s+when/i);
-      expect(content).toMatch(/don't\s+respond\s+when|do\s+not\s+respond\s+when/i);
+      expect(content).toContain("Send a message when");
+      expect(content).toContain("Stay silent when");
     });
 
-    it("contains pass() tool reference", () => {
+    it("contains opt-in response behavior (CRITICAL section)", () => {
       const content = fs.readFileSync(groupPromptPath, "utf-8");
-      expect(content).toContain("pass()");
+      expect(content).toContain("CRITICAL");
+      expect(content).toContain("NOT sent automatically");
+      expect(content).toContain("{SEND_SCRIPT}");
     });
 
-    it("contains example exchanges", () => {
-      const content = fs.readFileSync(groupPromptPath, "utf-8");
-      // Should have examples showing when to respond and when not to
-      expect(content).toMatch(/should\s+respond|example/i);
-      expect(content).toMatch(/should\s+not\s+respond|shouldn't\s+respond/i);
-    });
-
-    it("contains variable placeholders for group info", () => {
+    it("contains variable placeholder for group name", () => {
       const content = fs.readFileSync(groupPromptPath, "utf-8");
       expect(content).toContain("{GROUP_NAME}");
-      expect(content).toContain("{GROUP_ID}");
-      expect(content).toContain("{AGENT_PHONE_NUMBER}");
     });
 
-    it("contains send command example for groups", () => {
+    it("contains when in doubt guideline", () => {
       const content = fs.readFileSync(groupPromptPath, "utf-8");
-      expect(content).toContain("signal-cli");
-      expect(content).toContain("send -m");
-      expect(content).toContain("-g"); // group flag
+      expect(content).toContain("When in doubt");
+      expect(content).toContain("Stay silent");
     });
   });
 
@@ -146,24 +136,25 @@ describe("prompts", () => {
       const groupPrompt = loadPrompt("group", {
         AGENT_PHONE_NUMBER: "+1555123456",
         GROUP_NAME: "Family Chat",
-        GROUP_ID: "abc123groupid==",
+        SEND_SCRIPT: "/path/to/signal-send.sh +1234567890",
       });
 
       // Should contain common.md content
       expect(groupPrompt).toContain("Jarvis");
 
-      // Should contain group.md content
-      expect(groupPrompt).toContain("pass()");
+      // Should contain group.md opt-in behavior
+      expect(groupPrompt).toContain("CRITICAL");
+      expect(groupPrompt).toContain("NOT sent automatically");
 
       // Variables should be substituted
       expect(groupPrompt).toContain("+1555123456");
       expect(groupPrompt).toContain("Family Chat");
-      expect(groupPrompt).toContain("abc123groupid==");
+      expect(groupPrompt).toContain("/path/to/signal-send.sh");
 
       // No unsubstituted placeholders should remain
       expect(groupPrompt).not.toContain("{AGENT_PHONE_NUMBER}");
       expect(groupPrompt).not.toContain("{GROUP_NAME}");
-      expect(groupPrompt).not.toContain("{GROUP_ID}");
+      expect(groupPrompt).not.toContain("{SEND_SCRIPT}");
     });
 
     it("combines common and type-specific prompts", () => {

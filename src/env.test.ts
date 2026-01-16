@@ -31,7 +31,7 @@ describe("env", () => {
     const { getEnv } = await import("./env");
     const env = getEnv();
 
-    expect(env.anthropicModel).toBe("claude-sonnet-4-5-20250514");
+    expect(env.anthropicModel).toBe("claude-sonnet-4-5-20250929");
   });
 
   it("allows overriding anthropicModel via ANTHROPIC_MODEL", async () => {
@@ -114,6 +114,43 @@ describe("env", () => {
       "agentPhoneNumber",
       "anthropicApiKey",
       "anthropicModel",
+      "groupBehaviorInDms",
+      "signalCliConfig",
     ]);
+  });
+
+  it("returns signalCliConfig with default value", async () => {
+    process.env.ANTHROPIC_API_KEY = "test-anthropic-key";
+    process.env.AGENT_NAME = "TestAgent";
+    process.env.AGENT_PHONE_NUMBER = "+15555555555";
+
+    const { getEnv } = await import("./env");
+    const env = getEnv();
+
+    // Default is resolved to absolute path from ./signal-cli-config
+    expect(env.signalCliConfig).toContain("signal-cli-config");
+  });
+
+  it("returns groupBehaviorInDms as false by default", async () => {
+    process.env.ANTHROPIC_API_KEY = "test-anthropic-key";
+    process.env.AGENT_NAME = "TestAgent";
+    process.env.AGENT_PHONE_NUMBER = "+15555555555";
+
+    const { getEnv } = await import("./env");
+    const env = getEnv();
+
+    expect(env.groupBehaviorInDms).toBe(false);
+  });
+
+  it("returns groupBehaviorInDms as true when set", async () => {
+    process.env.ANTHROPIC_API_KEY = "test-anthropic-key";
+    process.env.AGENT_NAME = "TestAgent";
+    process.env.AGENT_PHONE_NUMBER = "+15555555555";
+    process.env.GROUP_BEHAVIOR_IN_DMS = "true";
+
+    const { getEnv } = await import("./env");
+    const env = getEnv();
+
+    expect(env.groupBehaviorInDms).toBe(true);
   });
 });

@@ -1,8 +1,11 @@
-import {
-  unstable_v2_createSession,
-  unstable_v2_resumeSession,
-} from '@anthropic-ai/claude-agent-sdk'
-import { loadPrompt } from './prompts'
+import { query, type Query, type SDKMessage } from '@anthropic-ai/claude-agent-sdk'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { loadPrompt } from './prompts.js'
+
+// Get the directory of this module for resolving script paths
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 /** Default turn timeout: 10 minutes in milliseconds */
 const DEFAULT_TURN_TIMEOUT_MS = 10 * 60 * 1000
@@ -42,6 +45,8 @@ export interface DmAgentConfig extends AgentOptions {
   contactPhone: string
   contactName?: string
   existingSessionId?: string
+  /** Use group behavior (opt-in to respond) even though this is a DM */
+  useGroupBehavior?: boolean
 }
 
 /**
@@ -64,14 +69,16 @@ export type ChatAgentConfig = DmAgentConfig | GroupAgentConfig
  * - Type-specific prompt (dm.md or group.md with common.md prefix)
  * - Persistent session for conversation continuity
  * - Independent context (no cross-chat awareness)
+ *
+ * Uses the V1 query() API which supports systemPrompt, allowedTools, and permissionMode.
  */
 export class ChatAgent {
   readonly chatId: string
   readonly type: 'dm' | 'group'
 
   private config: ChatAgentConfig
-  private session: ReturnType<typeof unstable_v2_createSession> | null = null
   private _sessionId: string | null = null
+  private currentQuery: Query | null = null
 
   constructor(config: ChatAgentConfig) {
     this.chatId = config.chatId
@@ -80,65 +87,54 @@ export class ChatAgent {
   }
 
   /**
-   * Returns the session ID after initialization.
-   * Throws if called before initialize().
+   * Returns the session ID if available.
+   * For new sessions, this is only available after the first message exchange.
+   * For resumed sessions, this is available immediately.
+   * Returns null if not yet available.
    */
-  get sessionId(): string {
-    if (!this._sessionId) {
-      throw new Error('Agent not initialized. Call initialize() first.')
-    }
+  get sessionId(): string | null {
     return this._sessionId
   }
 
   /**
-   * Initializes the agent by creating or resuming a session.
-   *
-   * If existingSessionId is provided, attempts to resume that session.
-   * On resume failure, logs a warning and creates a fresh session.
-   *
-   * Safe to call multiple times - closes existing session before creating new one.
+   * Initializes the agent. For V1 API, this is a no-op since queries are
+   * created per-turn. Sets up the initial session ID if resuming.
    */
   async initialize(): Promise<void> {
-    // Close existing session if re-initializing
-    if (this.session) {
-      this.session.close()
-      this.session = null
-      this._sessionId = null
-    }
-
-    const systemPrompt = this.buildSystemPrompt()
-
-    const sessionOptions = {
-      model: this.config.anthropicModel,
-      systemPrompt,
-    }
-
+    // If we have an existing session ID, store it for resume
     if (this.config.existingSessionId) {
-      try {
-        this.session = unstable_v2_resumeSession(
-          this.config.existingSessionId,
-          sessionOptions
-        )
-        this._sessionId = this.session.sessionId
-        return
-      } catch (error) {
-        console.warn(
-          `[agent:${this.chatId}] Failed to resume session ${this.config.existingSessionId}, creating fresh session:`,
-          error
-        )
-      }
+      this._sessionId = this.config.existingSessionId
     }
-
-    this.session = unstable_v2_createSession(sessionOptions)
-    this._sessionId = this.session.sessionId
   }
 
   /**
    * Builds the system prompt based on chat type.
+   * If useGroupBehavior is set on a DM, uses the group prompt (for testing).
    */
   private buildSystemPrompt(): string {
+    const { agentPhoneNumber } = this.config
+    // Resolve the send script path relative to the project root (one level up from src/)
+    const sendScriptPath = path.resolve(__dirname, '..', 'scripts', 'signal-send.sh')
+
     if (this.config.type === 'dm') {
-      const { contactName, contactPhone, agentPhoneNumber } = this.config
+      const { contactName, contactPhone, useGroupBehavior } = this.config
+
+      if (useGroupBehavior) {
+        // Use group prompt for DM (testing group behavior)
+        // Send script targets the phone number directly (not a group)
+        const sendScript = `${sendScriptPath} ${contactPhone}`
+        console.log(`[agent:${this.chatId}] Using GROUP prompt (useGroupBehavior=true)`)
+        console.log(`[agent:${this.chatId}] Send script: ${sendScript}`)
+        const prompt = loadPrompt('group', {
+          AGENT_PHONE_NUMBER: agentPhoneNumber,
+          GROUP_NAME: `DM with ${contactName || contactPhone}`,
+          SEND_SCRIPT: sendScript,
+        })
+        console.log(`[agent:${this.chatId}] System prompt:\n${prompt}`)
+        return prompt
+      }
+
+      console.log(`[agent:${this.chatId}] Using DM prompt`)
       return loadPrompt('dm', {
         AGENT_PHONE_NUMBER: agentPhoneNumber,
         CONTACT_NAME: contactName || contactPhone,
@@ -146,34 +142,23 @@ export class ChatAgent {
       })
     }
 
-    const { groupName, groupId, agentPhoneNumber } = this.config
+    const { groupName, groupId } = this.config
+    // Send script targets the group with -g flag
+    const sendScript = `${sendScriptPath} -g "${groupId}"`
+    console.log(`[agent:${this.chatId}] Using GROUP prompt`)
     return loadPrompt('group', {
       AGENT_PHONE_NUMBER: agentPhoneNumber,
       GROUP_NAME: groupName || groupId,
-      GROUP_ID: groupId,
+      SEND_SCRIPT: sendScript,
     })
   }
 
   /**
-   * Returns the underlying SDK session.
-   * Throws if called before initialize().
-   */
-  getSession(): ReturnType<typeof unstable_v2_createSession> {
-    if (!this.session) {
-      throw new Error('Agent not initialized. Call initialize() first.')
-    }
-    return this.session
-  }
-
-  /**
-   * Closes the session and releases resources.
+   * Closes the agent and releases resources.
    */
   close(): void {
-    if (this.session) {
-      this.session.close()
-      this.session = null
-      this._sessionId = null
-    }
+    this._sessionId = null
+    this.currentQuery = null
   }
 
   /**
@@ -190,10 +175,6 @@ export class ChatAgent {
    * @returns TurnResult indicating success or timeout
    */
   async runTurn(message: string, options?: TurnOptions): Promise<TurnResult> {
-    if (!this.session) {
-      throw new Error('Agent not initialized. Call initialize() first.')
-    }
-
     const timeoutMs = options?.timeoutMs ?? DEFAULT_TURN_TIMEOUT_MS
 
     const timeoutPromise = new Promise<null>((resolve) => {
@@ -215,21 +196,77 @@ export class ChatAgent {
   }
 
   /**
-   * Executes the turn by sending the message and collecting the response from the stream.
+   * Executes the turn using the V1 query() API.
+   * This API supports systemPrompt, allowedTools, and permissionMode.
    */
   private async executeTurn(message: string): Promise<string> {
-    await this.session!.send(message)
+    const systemPrompt = this.buildSystemPrompt()
+
+    // Build query options
+    const queryOptions = {
+      model: this.config.anthropicModel,
+      systemPrompt,
+      // Only allow Bash tool for running signal-cli commands
+      tools: ['Bash'] as string[],
+      // Bypass permission prompts - this bot runs headless
+      permissionMode: 'bypassPermissions' as const,
+      allowDangerouslySkipPermissions: true,
+      // Resume existing session if available
+      ...(this._sessionId ? { resume: this._sessionId } : {}),
+    }
+
+    // Create the query
+    this.currentQuery = query({
+      prompt: message,
+      options: queryOptions,
+    })
 
     let response = ''
-    for await (const sdkMessage of this.session!.stream()) {
+
+    // Stream through the messages
+    for await (const sdkMessage of this.currentQuery) {
+      // Capture session ID from any message
+      if ('session_id' in sdkMessage && sdkMessage.session_id) {
+        this._sessionId = sdkMessage.session_id
+      }
+
+      // Log tool use for debugging
+      if (sdkMessage.type === 'assistant' && sdkMessage.message?.content) {
+        for (const block of sdkMessage.message.content) {
+          if (block.type === 'tool_use') {
+            console.log(`[agent:${this.chatId}] Tool call: ${block.name}`)
+            if (block.name === 'Bash') {
+              console.log(`[agent:${this.chatId}] Bash command: ${(block.input as { command?: string })?.command}`)
+            }
+          }
+        }
+      }
+
+      // Log tool results (shows Bash output)
+      if (sdkMessage.type === 'user' && sdkMessage.message?.content) {
+        for (const block of sdkMessage.message.content) {
+          if (block.type === 'tool_result') {
+            const result = block as { tool_use_id?: string; content?: string | Array<{ type: string; text?: string }> }
+            const content = typeof result.content === 'string'
+              ? result.content
+              : result.content?.map(c => c.text).join('\n')
+            console.log(`[agent:${this.chatId}] Tool result: ${content?.substring(0, 500)}`)
+          }
+        }
+      }
+
+      // Capture the final result
       if (sdkMessage.type === 'result') {
         if (sdkMessage.subtype === 'success') {
           response = sdkMessage.result
+        } else {
+          console.error(`[agent:${this.chatId}] Query ended with error:`, sdkMessage.subtype)
         }
         break
       }
     }
 
+    this.currentQuery = null
     return response
   }
 }
