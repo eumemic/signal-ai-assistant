@@ -30,7 +30,7 @@ EOF
 - When multiple people are talking and you want to address a specific person's message
 
 **DON'T use reply-to when:**
-- There's only one message and it's obvious you're responding to it
+- You're responding to the most recent message (it's already obvious)
 - You're continuing a natural conversation flow where context is clear
 
 **Example:** If you see `[id:1705312200000] [2024-01-15T10:30:00.000Z] Alice (+1234567890): What's the weather?`, reply with:
