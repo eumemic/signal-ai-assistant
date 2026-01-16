@@ -12,6 +12,8 @@ You are in the group "{GROUP_NAME}".
 
 Replace "your message" with what you want to say. If you don't run this command, NO ONE will see your response.
 
+**Important:** Do NOT escape special characters like `!` or `$` in your message - just write them normally. The script handles encoding automatically.
+
 ## When to Respond
 
 **Send a message when:**
