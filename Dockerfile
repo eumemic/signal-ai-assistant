@@ -1,5 +1,5 @@
-# Force x86_64 emulation - signal-cli's native libs don't support ARM64
-FROM --platform=linux/amd64 node:22-slim
+# Multi-arch build: native ARM64 with patched libsignal, or x86_64 as-is
+FROM node:22-slim
 
 # Install signal-cli dependencies (signal-cli 0.13.2+ requires Java 21)
 # Using slim (Debian-based) instead of Alpine for glibc compatibility with signal-cli native libs
@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     gnupg \
     jq \
+    zip \
     && curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor -o /usr/share/keyrings/adoptium.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb bookworm main" > /etc/apt/sources.list.d/adoptium.list \
     && apt-get update \
@@ -22,6 +23,21 @@ RUN curl -L -o /tmp/signal-cli.tar.gz \
     && tar xf /tmp/signal-cli.tar.gz -C /opt \
     && ln -s /opt/signal-cli-${SIGNAL_CLI_VERSION}/bin/signal-cli /usr/local/bin/signal-cli \
     && rm /tmp/signal-cli.tar.gz
+
+# Patch ARM64 native library if building for ARM64
+# signal-cli bundles x86_64-only native libs; we replace with ARM64 builds from exquo/signal-libs-build
+ARG TARGETARCH
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+      LIBSIGNAL_JAR=$(ls /opt/signal-cli-${SIGNAL_CLI_VERSION}/lib/libsignal-client-*.jar) && \
+      LIBSIGNAL_VERSION=$(basename "$LIBSIGNAL_JAR" | sed 's/libsignal-client-\(.*\)\.jar/\1/') && \
+      echo "Patching libsignal $LIBSIGNAL_VERSION for ARM64..." && \
+      curl -L -o /tmp/libsignal_jni.tar.gz \
+        "https://github.com/exquo/signal-libs-build/releases/download/libsignal_v${LIBSIGNAL_VERSION}/libsignal_jni.so-v${LIBSIGNAL_VERSION}-aarch64-unknown-linux-gnu.tar.gz" && \
+      tar xf /tmp/libsignal_jni.tar.gz -C /tmp && \
+      zip -d "$LIBSIGNAL_JAR" libsignal_jni_amd64.so || true && \
+      cd /tmp && zip "$LIBSIGNAL_JAR" libsignal_jni.so && \
+      rm /tmp/libsignal_jni.tar.gz /tmp/libsignal_jni.so; \
+    fi
 
 # Create non-root user for running the agent
 # Claude Code SDK's --dangerously-skip-permissions cannot run as root

@@ -110,8 +110,12 @@ describe("Dockerfile", () => {
 
     const dockerfile = fs.readFileSync(dockerfilePath, "utf-8");
 
-    // Verify base image is Node 22 Debian slim with x86_64 platform
-    expect(dockerfile).toMatch(/FROM\s+--platform=linux\/amd64\s+node:22-slim/);
+    // Verify base image is Node 22 Debian slim (multi-arch, no forced platform)
+    expect(dockerfile).toMatch(/FROM\s+node:22-slim/);
+
+    // Verify ARM64 native library patching is included
+    expect(dockerfile).toContain("TARGETARCH");
+    expect(dockerfile).toContain("exquo/signal-libs-build");
 
     // Verify signal-cli installation is included
     expect(dockerfile).toContain("signal-cli");
