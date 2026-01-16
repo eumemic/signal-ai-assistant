@@ -10,8 +10,13 @@ npm run build    # Compile TypeScript to dist/
 npm start        # Run compiled dist/main.js (production)
 npm test         # Run tests with Vitest
 
-# Docker - signal-cli-rest-api
-docker compose up -d              # Start Signal REST API
+# signal-cli (use wrapper to auto-set config path)
+./scripts/signal-cli.sh listAccounts                    # List registered accounts
+./scripts/signal-cli.sh -a +1... updateProfile --name X # Update profile
+./scripts/signal-cli.sh -a +1... send -m "Hi" +1...     # Send message
+
+# Docker
+docker compose up -d              # Start the agent container
 docker compose logs -f            # View logs
 docker compose restart            # Restart after config changes
 ```
