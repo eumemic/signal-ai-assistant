@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     gnupg \
+    jq \
     && curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor -o /usr/share/keyrings/adoptium.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb bookworm main" > /etc/apt/sources.list.d/adoptium.list \
     && apt-get update \
@@ -22,17 +23,29 @@ RUN curl -L -o /tmp/signal-cli.tar.gz \
     && ln -s /opt/signal-cli-${SIGNAL_CLI_VERSION}/bin/signal-cli /usr/local/bin/signal-cli \
     && rm /tmp/signal-cli.tar.gz
 
-# Create agent workspace
-RUN mkdir -p /home/jarvis/{notes,downloads,scripts,data}
+# Create non-root user for running the agent
+# Claude Code SDK's --dangerously-skip-permissions cannot run as root
+RUN useradd -m -s /bin/bash jarvis
+
+# Create agent workspace with proper ownership
+RUN mkdir -p /home/jarvis/{notes,downloads,scripts,data,.claude} \
+    && chown -R jarvis:jarvis /home/jarvis
+
 WORKDIR /home/jarvis
 
-# Install app dependencies (ignore-scripts skips husky which is a devDependency)
-COPY package*.json ./
+# Install app dependencies as root (ignore-scripts skips husky which is a devDependency)
+COPY --chown=jarvis:jarvis package*.json ./
 RUN npm ci --omit=dev --ignore-scripts
 
-# Copy app code
-COPY dist/ ./dist/
-COPY prompts/ ./prompts/
-COPY scripts/ ./scripts/
+# Install Claude Code CLI globally (required by @anthropic-ai/claude-agent-sdk)
+RUN npm install -g @anthropic-ai/claude-code
+
+# Copy app code with proper ownership
+COPY --chown=jarvis:jarvis dist/ ./dist/
+COPY --chown=jarvis:jarvis prompts/ ./prompts/
+COPY --chown=jarvis:jarvis scripts/ ./scripts/
+
+# Switch to non-root user
+USER jarvis
 
 CMD ["node", "dist/main.js"]

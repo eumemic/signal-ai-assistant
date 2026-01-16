@@ -6,6 +6,8 @@ services:
     volumes:
       # Mount data directory (signal-cli registration, sessions, etc.)
       - ./data:/home/jarvis/data
+      # Mount Claude config from host for session persistence
+      - ~/.claude:/home/jarvis/.claude
       # Persistent workspace for agent files
       - jarvis-workspace:/home/jarvis/workspace
     environment:
