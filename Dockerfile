@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install signal-cli
-ARG SIGNAL_CLI_VERSION=0.13.2
+ARG SIGNAL_CLI_VERSION=0.13.22
 RUN curl -L -o /tmp/signal-cli.tar.gz \
     "https://github.com/AsamK/signal-cli/releases/download/v${SIGNAL_CLI_VERSION}/signal-cli-${SIGNAL_CLI_VERSION}.tar.gz" \
     && tar xf /tmp/signal-cli.tar.gz -C /opt \

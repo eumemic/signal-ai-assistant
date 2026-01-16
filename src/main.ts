@@ -494,7 +494,7 @@ export function createOrchestrator(): Orchestrator {
   /**
    * Connects to the daemon's TCP JSON-RPC interface with retry logic.
    */
-  async function connectToDaemon(maxRetries = 10, retryDelayMs = 1000): Promise<void> {
+  async function connectToDaemon(maxRetries = 30, retryDelayMs = 1000): Promise<void> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         await tryConnect()

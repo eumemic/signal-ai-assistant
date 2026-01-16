@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     mem_limit: 2g
     volumes:
-      # Mount data directory (contains signal-cli registration and sessions)
+      # Mount data directory (signal-cli registration, sessions, etc.)
       - ./data:/home/jarvis/data
       # Persistent workspace for agent files
       - jarvis-workspace:/home/jarvis/workspace

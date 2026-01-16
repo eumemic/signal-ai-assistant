@@ -29,7 +29,7 @@ export function getEnv(): Env {
     agentPhoneNumber: required("AGENT_PHONE_NUMBER"),
     anthropicApiKey: required("ANTHROPIC_API_KEY"),
     anthropicModel: optional("ANTHROPIC_MODEL") || "claude-haiku-4-5",
-    signalCliConfig: path.resolve(optional("SIGNAL_CLI_CONFIG") || "./signal-cli-config"),
+    signalCliConfig: path.resolve(optional("SIGNAL_CLI_CONFIG") || "./data/signal-cli-config"),
     groupBehaviorInDms: optional("GROUP_BEHAVIOR_IN_DMS") === "true",
   };
 

@@ -41,7 +41,7 @@ A Signal messaging bot powered by Claude (Anthropic) that acts as an AI-powered 
 
    # Optional
    ANTHROPIC_MODEL=claude-haiku-4-5  # Defaults to claude-haiku-4-5
-   SIGNAL_CLI_CONFIG=./signal-cli-config  # Defaults to ./signal-cli-config
+   SIGNAL_CLI_CONFIG=./data/signal-cli-config  # Defaults to ./data/signal-cli-config
    ```
 
 ## Signal Registration
@@ -58,7 +58,7 @@ Register your phone number with Signal before running the bot. This is a one-tim
 ### Step 2: Register the phone number
 
 ```bash
-signal-cli -c ./signal-cli-config -a +1234567890 register --captcha 'signalcaptcha://signal-hcaptcha.YOUR_TOKEN_HERE'
+signal-cli -c ./data/signal-cli-config -a +1234567890 register --captcha 'signalcaptcha://signal-hcaptcha.YOUR_TOKEN_HERE'
 ```
 
 If successful, the command completes with no output. You'll receive an SMS verification code.
@@ -66,7 +66,7 @@ If successful, the command completes with no output. You'll receive an SMS verif
 ### Step 3: Verify with SMS code
 
 ```bash
-signal-cli -c ./signal-cli-config -a +1234567890 verify 123456
+signal-cli -c ./data/signal-cli-config -a +1234567890 verify 123456
 ```
 
 Replace `123456` with the code from the SMS.
@@ -74,7 +74,7 @@ Replace `123456` with the code from the SMS.
 ### Step 4: Set the profile name
 
 ```bash
-signal-cli -c ./signal-cli-config -a +1234567890 updateProfile --given-name "Jarvis"
+signal-cli -c ./data/signal-cli-config -a +1234567890 updateProfile --given-name "Jarvis"
 ```
 
 ### Troubleshooting Registration
@@ -83,7 +83,7 @@ signal-cli -c ./signal-cli-config -a +1234567890 updateProfile --given-name "Jar
 
 **No SMS received** - Some VoIP numbers don't receive Signal SMS. Try voice verification:
 ```bash
-signal-cli -c ./signal-cli-config -a +1234567890 register --captcha 'TOKEN' --voice
+signal-cli -c ./data/signal-cli-config -a +1234567890 register --captcha 'TOKEN' --voice
 ```
 Note: Voice verification only works after a failed SMS attempt.
 
@@ -116,15 +116,7 @@ docker compose up --build
 docker compose logs -f
 ```
 
-For Docker, place your signal-cli registration data in `./data/signal-cli/`:
-```
-data/
-  signal-cli/
-    data/
-      accounts.json
-      {account-id}/
-        ...
-```
+For Docker, the `./data/` directory is mounted and contains both signal-cli registration and session data.
 
 ## Usage
 
