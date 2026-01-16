@@ -282,7 +282,10 @@ export class ChatAgent {
               const toolBlock = block as { name?: string; input?: Record<string, unknown> }
               console.log(`${prefix} [tool_call] ${toolBlock.name}`)
               if (toolBlock.name === 'Bash') {
-                console.log(`${prefix} [bash] ${(toolBlock.input as { command?: string })?.command}`)
+                const cmd = (toolBlock.input as { command?: string })?.command
+                // Use JSON.stringify to show exact string including escape sequences
+                console.log(`${prefix} [bash] ${cmd}`)
+                console.log(`${prefix} [bash_raw] ${JSON.stringify(cmd)}`)
               }
             }
           }

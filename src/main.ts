@@ -67,6 +67,7 @@ export function createOrchestrator(): Orchestrator {
   const mailboxes = new Map<string, Mailbox>()
   const agents = new Map<string, ChatAgent>()
   const agentCooldowns = new Map<string, number>() // chatId -> cooldown end timestamp
+  const chatMetadata = new Map<string, { contactName?: string; groupName?: string }>() // chatId -> metadata
   const AGENT_COOLDOWN_MS = 30000 // 30 second cooldown after agent errors
   let sessionStore: SessionStore
   let groupCache: GroupCache
@@ -269,8 +270,6 @@ export function createOrchestrator(): Orchestrator {
    * On error, the agent is removed and a cooldown is set to prevent rapid retry loops.
    */
   async function handleAgentTurn(chatId: string, mailbox: Mailbox): Promise<void> {
-    console.log(`[agent:${chatId}] handleAgentTurn called, queueLength=${mailbox.queueLength}, agentBusy=${mailbox.agentBusy}`)
-
     // Check if agent is in cooldown period after an error
     const cooldownEnd = agentCooldowns.get(chatId)
     if (cooldownEnd && Date.now() < cooldownEnd) {
@@ -282,13 +281,19 @@ export function createOrchestrator(): Orchestrator {
 
     // Mark agent as busy
     mailbox.setAgentBusy(true)
-    console.log(`[agent:${chatId}] Set agentBusy=true`)
 
     let hadError = false
     try {
       // Get or create the agent BEFORE draining messages
       // This ensures messages aren't lost if agent creation fails
-      const agent = await getOrCreateAgent(chatId, mailbox.type, {})
+      // Pass stored metadata (contact/group name) to avoid blocking signal-cli calls
+      const metadata = chatMetadata.get(chatId) || {}
+      const agent = await getOrCreateAgent(chatId, mailbox.type, {
+        contactPhone: chatId, // For DMs, chatId is the phone number
+        contactName: metadata.contactName,
+        groupId: chatId, // For groups, chatId is the groupId
+        groupName: metadata.groupName,
+      })
 
       // Drain all pending messages
       const messages = mailbox.drainQueue()
@@ -336,12 +341,10 @@ export function createOrchestrator(): Orchestrator {
     } finally {
       // Mark agent as no longer busy
       mailbox.setAgentBusy(false)
-      console.log(`[agent:${chatId}] Turn complete, set agentBusy=false, queueLength=${mailbox.queueLength}`)
 
       // Only process pending messages if we didn't have an error
       // (if we had an error, we're in cooldown and shouldn't immediately retry)
       if (!hadError && mailbox.queueLength > 0) {
-        console.log(`[agent:${chatId}] Messages pending, calling wake()`)
         mailbox.wake()
       }
     }
@@ -378,7 +381,15 @@ export function createOrchestrator(): Orchestrator {
    * Handles an incoming message from the receiver.
    */
   function handleMessage(message: ParsedMessage): void {
-    console.log(`[receiver] Message from ${message.sourceName || message.source} in ${message.chatId}`)
+    console.log(`[receiver] Message from ${message.sourceName || message.source} in ${message.chatId} (${message.chatType})`)
+
+    // Store metadata for this chat (contact name for DMs, group name for groups)
+    // This avoids needing to call signal-cli later to look up names
+    if (message.chatType === 'dm' && message.sourceName) {
+      chatMetadata.set(message.chatId, { contactName: message.sourceName })
+    } else if (message.chatType === 'group' && message.groupName) {
+      chatMetadata.set(message.chatId, { groupName: message.groupName })
+    }
 
     // Get or create mailbox
     const mailbox = getOrCreateMailbox(message.chatId, message.chatType)

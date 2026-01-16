@@ -23,6 +23,7 @@ export interface SignalReaction {
  */
 export interface SignalGroupInfo {
   groupId: string
+  groupName?: string
   type?: string
 }
 
@@ -59,6 +60,7 @@ interface ParsedMessageBase {
   sourceName?: string
   timestamp: number
   groupId?: string
+  groupName?: string
 }
 
 /**
@@ -105,6 +107,7 @@ export function parseSignalMessage(envelope: SignalEnvelope): ParsedMessage | nu
 
   // Determine chat ID and type (using groupId variable eliminates non-null assertions)
   const groupId = dataMessage.groupInfo?.groupId
+  const groupName = dataMessage.groupInfo?.groupName
   const isGroup = !!groupId
   const chatId = isGroup ? groupId : envelope.source
   const chatType: 'dm' | 'group' = isGroup ? 'group' : 'dm'
@@ -116,7 +119,7 @@ export function parseSignalMessage(envelope: SignalEnvelope): ParsedMessage | nu
     source: envelope.source,
     sourceName: envelope.sourceName,
     timestamp: envelope.timestamp,
-    ...(isGroup && { groupId }),
+    ...(isGroup && { groupId, groupName }),
   }
 
   // Handle reactions
