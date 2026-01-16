@@ -10,16 +10,22 @@ if [ "$1" = "-g" ]; then
     # Group message
     GROUP_ID="$2"
     MESSAGE="$3"
-
-    # Use jq for proper JSON encoding
-    JSON=$(jq -c -n --arg gid "$GROUP_ID" --arg msg "$MESSAGE" \
-        '{"jsonrpc":"2.0","method":"send","params":{"groupId":$gid,"message":$msg},"id":1}')
 else
     # Direct message
     RECIPIENT="$1"
     MESSAGE="$2"
+fi
 
-    # Use jq for proper JSON encoding
+# Remove backslash escapes that the SDK's shell execution adds before special chars
+# The SDK escapes ! $ and other chars for shell safety, but we need the raw text
+MESSAGE="${MESSAGE//\\!/!}"
+MESSAGE="${MESSAGE//\\\$/\$}"
+
+# Use jq for proper JSON encoding
+if [ -n "$GROUP_ID" ]; then
+    JSON=$(jq -c -n --arg gid "$GROUP_ID" --arg msg "$MESSAGE" \
+        '{"jsonrpc":"2.0","method":"send","params":{"groupId":$gid,"message":$msg},"id":1}')
+else
     JSON=$(jq -c -n --arg rcpt "$RECIPIENT" --arg msg "$MESSAGE" \
         '{"jsonrpc":"2.0","method":"send","params":{"recipient":[$rcpt],"message":$msg},"id":1}')
 fi
