@@ -223,44 +223,20 @@ export class ChatAgent {
 
     let response = ''
 
-    // Stream through the messages
+    // Stream through the messages - log all events for observability
     for await (const sdkMessage of this.currentQuery) {
       // Capture session ID from any message
       if ('session_id' in sdkMessage && sdkMessage.session_id) {
         this._sessionId = sdkMessage.session_id
       }
 
-      // Log tool use for debugging
-      if (sdkMessage.type === 'assistant' && sdkMessage.message?.content) {
-        for (const block of sdkMessage.message.content) {
-          if (block.type === 'tool_use') {
-            console.log(`[agent:${this.chatId}] Tool call: ${block.name}`)
-            if (block.name === 'Bash') {
-              console.log(`[agent:${this.chatId}] Bash command: ${(block.input as { command?: string })?.command}`)
-            }
-          }
-        }
-      }
-
-      // Log tool results (shows Bash output)
-      if (sdkMessage.type === 'user' && sdkMessage.message?.content) {
-        for (const block of sdkMessage.message.content) {
-          if (block.type === 'tool_result') {
-            const result = block as { tool_use_id?: string; content?: string | Array<{ type: string; text?: string }> }
-            const content = typeof result.content === 'string'
-              ? result.content
-              : result.content?.map(c => c.text).join('\n')
-            console.log(`[agent:${this.chatId}] Tool result: ${content?.substring(0, 500)}`)
-          }
-        }
-      }
+      // Log all SDK events for full observability
+      this.logSdkMessage(sdkMessage)
 
       // Capture the final result
       if (sdkMessage.type === 'result') {
         if (sdkMessage.subtype === 'success') {
           response = sdkMessage.result
-        } else {
-          console.error(`[agent:${this.chatId}] Query ended with error:`, sdkMessage.subtype)
         }
         break
       }
@@ -268,5 +244,107 @@ export class ChatAgent {
 
     this.currentQuery = null
     return response
+  }
+
+  /**
+   * Logs an SDK message to stdout for full observability.
+   * All agent stream events are logged so operators can monitor agent behavior.
+   */
+  private logSdkMessage(msg: SDKMessage): void {
+    const prefix = `[agent:${this.chatId}]`
+
+    switch (msg.type) {
+      case 'system':
+        if (msg.subtype === 'init') {
+          console.log(`${prefix} [init] model=${msg.model} tools=${msg.tools.join(',')} permissionMode=${msg.permissionMode}`)
+        } else if (msg.subtype === 'status') {
+          console.log(`${prefix} [status] ${msg.status ?? 'idle'}`)
+        } else if (msg.subtype === 'hook_response') {
+          console.log(`${prefix} [hook] ${msg.hook_event}:${msg.hook_name} exit=${msg.exit_code}`)
+          if (msg.stdout) console.log(`${prefix} [hook stdout] ${msg.stdout.substring(0, 500)}`)
+          if (msg.stderr) console.log(`${prefix} [hook stderr] ${msg.stderr.substring(0, 500)}`)
+        } else if (msg.subtype === 'compact_boundary') {
+          console.log(`${prefix} [compact] trigger=${msg.compact_metadata.trigger} pre_tokens=${msg.compact_metadata.pre_tokens}`)
+        }
+        break
+
+      case 'assistant':
+        // Log assistant message with any tool calls
+        if (msg.message?.content) {
+          for (const block of msg.message.content) {
+            if (block.type === 'text') {
+              // Log text blocks (Claude's thinking/response)
+              const text = (block as { text?: string }).text ?? ''
+              if (text.trim()) {
+                console.log(`${prefix} [assistant] ${text.substring(0, 500)}${text.length > 500 ? '...' : ''}`)
+              }
+            } else if (block.type === 'tool_use') {
+              const toolBlock = block as { name?: string; input?: Record<string, unknown> }
+              console.log(`${prefix} [tool_call] ${toolBlock.name}`)
+              if (toolBlock.name === 'Bash') {
+                console.log(`${prefix} [bash] ${(toolBlock.input as { command?: string })?.command}`)
+              }
+            }
+          }
+        }
+        if (msg.error) {
+          console.error(`${prefix} [assistant_error] ${msg.error}`)
+        }
+        break
+
+      case 'user':
+        // Log tool results
+        if ('isReplay' in msg && msg.isReplay) {
+          // Skip replay messages (duplicates)
+          break
+        }
+        if (msg.message?.content) {
+          for (const block of msg.message.content as Array<{ type: string; content?: string | Array<{ type: string; text?: string }> }>) {
+            if (block.type === 'tool_result') {
+              const content = typeof block.content === 'string'
+                ? block.content
+                : Array.isArray(block.content)
+                  ? block.content.map(c => c.text).join('\n')
+                  : ''
+              console.log(`${prefix} [tool_result] ${content.substring(0, 500)}${content.length > 500 ? '...' : ''}`)
+            }
+          }
+        }
+        break
+
+      case 'result':
+        // Log final result with usage stats
+        if (msg.subtype === 'success') {
+          const cost = msg.total_cost_usd?.toFixed(4) ?? '0.0000'
+          console.log(`${prefix} [result] success turns=${msg.num_turns} cost=$${cost} duration=${msg.duration_ms}ms`)
+        } else {
+          console.error(`${prefix} [result] ${msg.subtype} errors=${(msg as { errors?: string[] }).errors?.join(', ')}`)
+        }
+        break
+
+      case 'stream_event':
+        // Log streaming events (partial responses)
+        const event = msg.event
+        if (event.type === 'content_block_delta') {
+          const delta = (event as { delta?: { type?: string; text?: string } }).delta
+          if (delta?.type === 'text_delta' && delta.text) {
+            // Log text deltas (streaming text output)
+            process.stdout.write(delta.text)
+          }
+        } else if (event.type === 'message_start') {
+          console.log(`${prefix} [stream] message_start`)
+        } else if (event.type === 'message_stop') {
+          console.log(`\n${prefix} [stream] message_stop`)
+        }
+        break
+
+      case 'tool_progress':
+        console.log(`${prefix} [tool_progress] ${msg.tool_name} elapsed=${msg.elapsed_time_seconds}s`)
+        break
+
+      case 'auth_status':
+        console.log(`${prefix} [auth] authenticating=${msg.isAuthenticating}${msg.error ? ` error=${msg.error}` : ''}`)
+        break
+    }
   }
 }
