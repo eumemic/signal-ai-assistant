@@ -63,13 +63,11 @@ describe("prompts", () => {
       const content = fs.readFileSync(dmPromptPath, "utf-8");
       expect(content).toContain("{CONTACT_NAME}");
       expect(content).toContain("{CONTACT_PHONE}");
-      expect(content).toContain("{AGENT_PHONE_NUMBER}");
     });
 
-    it("contains send command example", () => {
+    it("indicates responses are auto-sent", () => {
       const content = fs.readFileSync(dmPromptPath, "utf-8");
-      expect(content).toContain("signal-cli");
-      expect(content).toContain("send -m");
+      expect(content).toContain("sent automatically");
     });
   });
 
