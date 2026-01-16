@@ -1,0 +1,32 @@
+{
+  "servers": {
+    "meme": {
+      "type": "stdio",
+      "command": "${DATA_DIR}/node_modules/.bin/meme-mcp",
+      "env": {
+        "IMGFLIP_USERNAME": "${IMGFLIP_USERNAME}",
+        "IMGFLIP_PASSWORD": "${IMGFLIP_PASSWORD}"
+      },
+      "enabled": true
+    },
+    "filesystem": {
+      "type": "stdio",
+      "command": "${DATA_DIR}/node_modules/.bin/mcp-server-filesystem",
+      "args": ["/home/jarvis/workspace", "/home/jarvis/data"],
+      "enabled": false
+    },
+    "brave-search": {
+      "type": "stdio",
+      "command": "${DATA_DIR}/node_modules/.bin/mcp-server-brave-search",
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      },
+      "enabled": false
+    },
+    "fetch": {
+      "type": "stdio",
+      "command": "${DATA_DIR}/node_modules/.bin/mcp-server-fetch",
+      "enabled": false
+    }
+  }
+}
