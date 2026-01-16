@@ -377,13 +377,18 @@ export function createOrchestrator(): Orchestrator {
       let text = parsed.text
 
       // Append attachment paths so agent can view them with Read tool
+      // signal-cli downloads attachments to {configDir}/attachments/{id}
       if (parsed.attachments && parsed.attachments.length > 0) {
         for (const attachment of parsed.attachments) {
-          if (attachment.file) {
-            // Classify attachment type for display
+          // Construct path: signal-cli stores attachments at {configDir}/attachments/{id}
+          const attachmentPath = signalCliConfig
+            ? `${signalCliConfig}/attachments/${attachment.id}`
+            : null
+
+          if (attachmentPath) {
             const isImage = attachment.contentType.startsWith('image/')
             const typeLabel = isImage ? 'Image' : 'Attachment'
-            text += `\n[${typeLabel}: ${attachment.file}]`
+            text += `\n[${typeLabel}: ${attachmentPath}]`
           }
         }
       }
