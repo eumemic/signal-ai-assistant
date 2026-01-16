@@ -1,4 +1,4 @@
-import { query, type Query, type SDKMessage } from '@anthropic-ai/claude-agent-sdk'
+import { query, type Query, type SDKMessage, type HookCallback } from '@anthropic-ai/claude-agent-sdk'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { loadPrompt } from './prompts.js'
@@ -202,6 +202,23 @@ export class ChatAgent {
   private async executeTurn(message: string): Promise<string> {
     const systemPrompt = this.buildSystemPrompt()
 
+    // Determine if this is group behavior mode (groups, or DMs with useGroupBehavior)
+    const isGroupBehavior =
+      this.config.type === 'group' ||
+      (this.config.type === 'dm' && this.config.useGroupBehavior)
+
+    // UserPromptSubmit hook to remind agent about sending messages in group mode
+    const groupModePromptHook: HookCallback = async () => {
+      return {
+        hookSpecificOutput: {
+          hookEventName: 'UserPromptSubmit' as const,
+          additionalContext:
+            'Remember: To respond to this message, you MUST use the Bash tool with the send script. ' +
+            'Your text responses are not sent automatically. If you choose not to respond, that\'s fine.',
+        },
+      }
+    }
+
     // Build query options
     const queryOptions = {
       model: this.config.anthropicModel,
@@ -213,6 +230,10 @@ export class ChatAgent {
       allowDangerouslySkipPermissions: true,
       // Resume existing session if available
       ...(this._sessionId ? { resume: this._sessionId } : {}),
+      // Add UserPromptSubmit hook for group mode reminder
+      ...(isGroupBehavior
+        ? { hooks: { UserPromptSubmit: [{ hooks: [groupModePromptHook] }] } }
+        : {}),
     }
 
     console.log(`[agent:${this.chatId}] Query options: resume=${this._sessionId || 'none'}`)
