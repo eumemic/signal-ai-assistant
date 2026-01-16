@@ -214,7 +214,8 @@ export class ChatAgent {
           hookEventName: 'UserPromptSubmit' as const,
           additionalContext:
             'Remember: To respond to this message, you MUST use the Bash tool with the send script. ' +
-            'Your text responses are not sent automatically. If you choose not to respond, that\'s fine.',
+            'Your text responses are not sent automatically. If you choose not to respond, that\'s fine. ' +
+            'DON\'T use the -q reply-to flag when responding to the most recent message - it\'s already obvious what you\'re replying to.',
         },
       }
     }
