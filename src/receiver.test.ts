@@ -168,7 +168,7 @@ describe('parseSignalMessage', () => {
         reaction: {
           emoji: '👍',
           targetAuthor: '+0987654321',
-          targetTimestamp: 1705312245100,
+          targetSentTimestamp: 1705312245100,
         },
       },
     }
@@ -198,7 +198,7 @@ describe('parseSignalMessage', () => {
         reaction: {
           emoji: '❤️',
           targetAuthor: '+0987654321',
-          targetTimestamp: 1705312245100,
+          targetSentTimestamp: 1705312245100,
         },
         groupInfo: {
           groupId: 'Z3JvdXBfYWJjMTIz==',
@@ -257,6 +257,73 @@ describe('parseSignalMessage', () => {
           id: 'abc123',
         },
       ],
+    })
+  })
+
+  it('parses messages with quote (reply-to)', () => {
+    const envelope: SignalEnvelope = {
+      source: '+1234567890',
+      sourceNumber: '+1234567890',
+      sourceName: 'Tom',
+      timestamp: 1705312245123,
+      dataMessage: {
+        message: 'can you see which message I\'m responding to here?',
+        quote: {
+          id: 1705312000000,
+          author: '+0987654321',
+          text: 'Done! 👋',
+        },
+      },
+    }
+
+    const result = parseSignalMessage(envelope)
+
+    expect(result).toEqual({
+      type: 'text',
+      chatId: '+1234567890',
+      chatType: 'dm',
+      source: '+1234567890',
+      sourceName: 'Tom',
+      timestamp: 1705312245123,
+      text: 'can you see which message I\'m responding to here?',
+      quote: {
+        targetTimestamp: 1705312000000,
+        targetAuthor: '+0987654321',
+        text: 'Done! 👋',
+      },
+    })
+  })
+
+  it('parses quote without text preview', () => {
+    const envelope: SignalEnvelope = {
+      source: '+1234567890',
+      sourceNumber: '+1234567890',
+      sourceName: 'Tom',
+      timestamp: 1705312245123,
+      dataMessage: {
+        message: 'What about this one?',
+        quote: {
+          id: 1705312000000,
+          author: '+0987654321',
+          // No text field - message might have been deleted or was an attachment
+        },
+      },
+    }
+
+    const result = parseSignalMessage(envelope)
+
+    expect(result).toEqual({
+      type: 'text',
+      chatId: '+1234567890',
+      chatType: 'dm',
+      source: '+1234567890',
+      sourceName: 'Tom',
+      timestamp: 1705312245123,
+      text: 'What about this one?',
+      quote: {
+        targetTimestamp: 1705312000000,
+        targetAuthor: '+0987654321',
+      },
     })
   })
 })

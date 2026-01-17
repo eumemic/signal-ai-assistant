@@ -137,6 +137,68 @@ describe('formatTextMessage', () => {
 
     expect(formatted).toBe('[2024-01-15T10:30:45.000Z] +1234567890 (+1234567890): Hello from unknown contact')
   })
+
+  it('formats message with quote (reply-to)', () => {
+    const message: ParsedTextMessage = {
+      type: 'text',
+      chatId: '+1234567890',
+      chatType: 'dm',
+      source: '+1234567890',
+      sourceName: 'Tom',
+      timestamp: 1705314645000,
+      text: 'can you see which message I\'m responding to here?',
+      quote: {
+        targetTimestamp: 1705312000000,
+        targetAuthor: '+0987654321',
+        text: 'Done! 👋',
+      },
+    }
+
+    const formatted = formatTextMessage(message)
+
+    expect(formatted).toBe('[2024-01-15T10:30:45.000Z] Tom (+1234567890) (replying to msg@1705312000000 from +0987654321: "Done! 👋"): can you see which message I\'m responding to here?')
+  })
+
+  it('formats message with quote and author name option', () => {
+    const message: ParsedTextMessage = {
+      type: 'text',
+      chatId: '+1234567890',
+      chatType: 'dm',
+      source: '+1234567890',
+      sourceName: 'Tom',
+      timestamp: 1705314645000,
+      text: 'can you see which message I\'m responding to here?',
+      quote: {
+        targetTimestamp: 1705312000000,
+        targetAuthor: '+0987654321',
+        text: 'Done! 👋',
+      },
+    }
+
+    const formatted = formatTextMessage(message, { quoteAuthorName: 'Sarah' })
+
+    expect(formatted).toBe('[2024-01-15T10:30:45.000Z] Tom (+1234567890) (replying to msg@1705312000000 from Sarah: "Done! 👋"): can you see which message I\'m responding to here?')
+  })
+
+  it('formats message with quote without text preview', () => {
+    const message: ParsedTextMessage = {
+      type: 'text',
+      chatId: '+1234567890',
+      chatType: 'dm',
+      source: '+1234567890',
+      sourceName: 'Tom',
+      timestamp: 1705314645000,
+      text: 'What about this one?',
+      quote: {
+        targetTimestamp: 1705312000000,
+        targetAuthor: '+0987654321',
+      },
+    }
+
+    const formatted = formatTextMessage(message)
+
+    expect(formatted).toBe('[2024-01-15T10:30:45.000Z] Tom (+1234567890) (replying to msg@1705312000000 from +0987654321): What about this one?')
+  })
 })
 
 describe('formatReactionMessage', () => {

@@ -10,6 +10,10 @@ services:
       - ~/.claude:/home/jarvis/.claude
       # Persistent workspace for agent files
       - jarvis-workspace:/home/jarvis/workspace
+      # Dev mounts: pick up code changes without rebuilding image
+      - ./dist:/home/jarvis/dist
+      - ./prompts:/home/jarvis/prompts
+      - ./scripts:/home/jarvis/scripts
     environment:
       # See specs/1-agent-foundation.md for full environment variable documentation
       - ANTHROPIC_API_KEY

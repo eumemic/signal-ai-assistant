@@ -1,4 +1,4 @@
-import { ParsedTextMessage, ParsedReactionMessage } from './receiver.js'
+import { ParsedTextMessage, ParsedReactionMessage, ParsedQuote } from './receiver.js'
 
 /**
  * Formats a Signal timestamp (Unix milliseconds) as ISO 8601.
@@ -8,20 +8,55 @@ export function formatTimestamp(timestamp: number): string {
 }
 
 /**
+ * Options for formatting a text message.
+ */
+export interface TextMessageFormatOptions {
+  /** Display name for the quoted message author (defaults to phone number) */
+  quoteAuthorName?: string
+}
+
+/**
+ * Formats a quote for display in a message.
+ *
+ * Format: (replying to msg@{timestamp} from {authorName}: "{preview}")
+ */
+function formatQuote(quote: ParsedQuote, authorName: string): string {
+  let result = `(replying to msg@${quote.targetTimestamp} from ${authorName}`
+  if (quote.text) {
+    result += `: "${quote.text}"`
+  }
+  result += ')'
+  return result
+}
+
+/**
  * Formats a parsed text message for the agent's context.
  *
  * Format: [{ISO8601}] {senderName} ({senderPhone}): {text}
+ * If the message is a reply, includes: (replying to msg@{timestamp} from {author}: "{preview}")
  *
  * Per spec, the chat label is omitted since each agent knows its chat
  * from its system prompt.
  */
-export function formatTextMessage(message: ParsedTextMessage): string {
+export function formatTextMessage(
+  message: ParsedTextMessage,
+  options: TextMessageFormatOptions = {}
+): string {
   const timestamp = formatTimestamp(message.timestamp)
   // Use || to fall back to phone number for both undefined AND empty string
   const senderName = message.sourceName || message.source
   const senderPhone = message.source
 
-  return `[${timestamp}] ${senderName} (${senderPhone}): ${message.text}`
+  let result = `[${timestamp}] ${senderName} (${senderPhone})`
+
+  // Add quote context if this is a reply
+  if (message.quote) {
+    const quoteAuthorName = options.quoteAuthorName ?? message.quote.targetAuthor
+    result += ` ${formatQuote(message.quote, quoteAuthorName)}`
+  }
+
+  result += `: ${message.text}`
+  return result
 }
 
 /**

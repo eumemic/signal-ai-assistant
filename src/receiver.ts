@@ -13,11 +13,13 @@ export interface SignalAttachment {
 
 /**
  * Reaction data from signal-cli JSON output.
+ * Note: signal-cli uses targetSentTimestamp, not targetTimestamp.
  */
 export interface SignalReaction {
   emoji: string
   targetAuthor: string
-  targetTimestamp: number
+  /** The timestamp of the message being reacted to (signal-cli calls this targetSentTimestamp) */
+  targetSentTimestamp: number
 }
 
 /**
@@ -30,6 +32,18 @@ export interface SignalGroupInfo {
 }
 
 /**
+ * Quote (reply-to) data from signal-cli JSON output.
+ */
+export interface SignalQuote {
+  /** Timestamp of the quoted message */
+  id: number
+  /** Phone number or UUID of the quoted message author */
+  author: string
+  /** Preview text of the quoted message */
+  text?: string
+}
+
+/**
  * Data message content from signal-cli.
  */
 export interface SignalDataMessage {
@@ -37,6 +51,7 @@ export interface SignalDataMessage {
   groupInfo?: SignalGroupInfo
   attachments?: SignalAttachment[]
   reaction?: SignalReaction
+  quote?: SignalQuote
 }
 
 /**
@@ -66,12 +81,26 @@ interface ParsedMessageBase {
 }
 
 /**
+ * Quote context for a reply message.
+ */
+export interface ParsedQuote {
+  /** Timestamp of the quoted message */
+  targetTimestamp: number
+  /** Phone number or UUID of the quoted message author */
+  targetAuthor: string
+  /** Preview text of the quoted message */
+  text?: string
+}
+
+/**
  * Parsed text message.
  */
 export interface ParsedTextMessage extends ParsedMessageBase {
   type: 'text'
   text: string
   attachments?: SignalAttachment[]
+  /** Quote context if this is a reply to another message */
+  quote?: ParsedQuote
 }
 
 /**
@@ -126,13 +155,13 @@ export function parseSignalMessage(envelope: SignalEnvelope): ParsedMessage | nu
 
   // Handle reactions
   if (dataMessage.reaction) {
-    const { emoji, targetAuthor, targetTimestamp } = dataMessage.reaction
+    const { emoji, targetAuthor, targetSentTimestamp } = dataMessage.reaction
     return {
       ...base,
       type: 'reaction' as const,
       emoji,
       targetAuthor,
-      targetTimestamp,
+      targetTimestamp: targetSentTimestamp,
     }
   }
 
@@ -141,11 +170,21 @@ export function parseSignalMessage(envelope: SignalEnvelope): ParsedMessage | nu
   const hasAttachments = dataMessage.attachments && dataMessage.attachments.length > 0
 
   if (hasText || hasAttachments) {
+    // Build quote context if this is a reply
+    const quote = dataMessage.quote
+      ? {
+          targetTimestamp: dataMessage.quote.id,
+          targetAuthor: dataMessage.quote.author,
+          ...(dataMessage.quote.text && { text: dataMessage.quote.text }),
+        }
+      : undefined
+
     return {
       ...base,
       type: 'text' as const,
       text: dataMessage.message ?? '',
       ...(hasAttachments && { attachments: dataMessage.attachments }),
+      ...(quote && { quote }),
     }
   }
 

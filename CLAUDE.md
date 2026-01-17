@@ -18,7 +18,39 @@ npm test         # Run tests with Vitest
 # Docker
 docker compose up -d              # Start the agent container
 docker compose logs -f            # View logs
-docker compose restart            # Restart after config changes
+docker compose restart            # Restart to pick up code changes
+docker compose up -d --build      # Rebuild image (only for Dockerfile/package.json changes)
+```
+
+## Development Workflow
+
+The container mounts `dist/`, `prompts/`, and `scripts/` as volumes from the host, so code changes are picked up on restart without rebuilding the image.
+
+**After making code changes:**
+```bash
+npm run build && docker compose restart
+```
+
+**Always verify changes are working** by checking the logs:
+```bash
+docker compose logs --tail=30
+```
+
+Look for the `Batch:` output to confirm message formatting, or grep for specific patterns. Don't rely solely on user confirmation - you are responsible for monitoring the container and verifying fixes/features work as expected.
+
+This works for changes to:
+- `src/*.ts` (requires `npm run build` first)
+- `prompts/*`
+- `scripts/*`
+- `data/*` (mcp.json, etc.)
+- `.env`
+
+**Only rebuild the image when changing:**
+- `Dockerfile`
+- `package.json` / `package-lock.json`
+
+```bash
+npm run build && docker compose up -d --build
 ```
 
 ## Architecture

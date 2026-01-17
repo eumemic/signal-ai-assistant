@@ -374,8 +374,19 @@ export function createOrchestrator(): Orchestrator {
     const senderPhone = parsed.source
 
     if (parsed.type === 'text') {
-      // Build text with any attachments
-      let text = parsed.text
+      // Build text, starting with quote context if this is a reply
+      let text = ''
+
+      if (parsed.quote) {
+        const quoteAuthor = parsed.quote.targetAuthor
+        text += `(replying to msg@${parsed.quote.targetTimestamp} from ${quoteAuthor}`
+        if (parsed.quote.text) {
+          text += `: "${parsed.quote.text}"`
+        }
+        text += ') '
+      }
+
+      text += parsed.text
 
       // Append attachment paths so agent can view them with Read tool
       // signal-cli downloads attachments to {configDir}/attachments/{id}
