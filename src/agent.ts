@@ -143,6 +143,7 @@ export class ChatAgent {
         const prompt = loadPrompt('group', {
           AGENT_PHONE_NUMBER: agentPhoneNumber,
           GROUP_NAME: `DM with ${contactName || contactPhone}`,
+          GROUP_ID: '', // Not a real group, reactions will use DM syntax
           SEND_SCRIPT: sendScript,
         })
         console.log(`[agent:${this.chatId}] System prompt:\n${prompt}`)
@@ -167,6 +168,7 @@ export class ChatAgent {
     return loadPrompt('group', {
       AGENT_PHONE_NUMBER: agentPhoneNumber,
       GROUP_NAME: groupName || groupId,
+      GROUP_ID: groupId,
       SEND_SCRIPT: sendScript,
     })
   }
@@ -233,7 +235,25 @@ export class ChatAgent {
           additionalContext:
             'Remember: To respond to this message, you MUST use the Bash tool with the send script. ' +
             'Your text responses are not sent automatically. If you choose not to respond, that\'s fine. ' +
-            'DON\'T use the -q reply-to flag when responding to the most recent message - it\'s already obvious what you\'re replying to.',
+            'DON\'T use the -q reply-to flag when responding to the most recent message - it\'s already obvious what you\'re replying to.\n\n' +
+            'REACTIONS: You can react with emoji instead of (or in addition to) a full response. ' +
+            'Use: signal-react.sh -g "GROUP_ID" "👍" TIMESTAMP AUTHOR. ' +
+            'Good for: quick acknowledgment, laughing at jokes (😂), celebrating news (🎉), showing you saw something (👍❤️). ' +
+            'Don\'t overdo it - reactions are a light touch.',
+        },
+      }
+    }
+
+    // UserPromptSubmit hook for DM mode - just reaction reminders
+    const dmModePromptHook: HookCallback = async () => {
+      return {
+        hookSpecificOutput: {
+          hookEventName: 'UserPromptSubmit' as const,
+          additionalContext:
+            'REACTIONS: You can react with emoji instead of (or in addition to) a full response. ' +
+            'Use: signal-react.sh "👍" TIMESTAMP AUTHOR RECIPIENT (all same phone for DMs). ' +
+            'Good for: quick acknowledgment, laughing at jokes (😂), celebrating news (🎉), showing you saw something (👍❤️). ' +
+            'Don\'t overdo it - reactions are a light touch.',
         },
       }
     }
@@ -246,17 +266,17 @@ export class ChatAgent {
     const queryOptions = {
       model: this.config.anthropicModel,
       systemPrompt,
-      // Bash for signal-cli and system commands, Read for viewing images/documents
-      tools: ['Bash', 'Read'] as string[],
+      // Bash for signal-cli and system commands, Read for viewing images/documents, WebSearch for real-time web search
+      tools: ['Bash', 'Read', 'WebSearch'] as string[],
       // Bypass permission prompts - this bot runs headless
       permissionMode: 'bypassPermissions' as const,
       allowDangerouslySkipPermissions: true,
       // Resume existing session if available
       ...(this._sessionId ? { resume: this._sessionId } : {}),
-      // Add UserPromptSubmit hook for group mode reminder
-      ...(isGroupBehavior
-        ? { hooks: { UserPromptSubmit: [{ hooks: [groupModePromptHook] }] } }
-        : {}),
+      // Add UserPromptSubmit hook for reminders (group mode gets send reminder + reactions, DM mode gets just reactions)
+      hooks: {
+        UserPromptSubmit: [{ hooks: [isGroupBehavior ? groupModePromptHook : dmModePromptHook] }],
+      },
       // Add MCP servers if configured
       ...(hasMcpServers ? { mcpServers } : {}),
     }
