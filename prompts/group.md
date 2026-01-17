@@ -67,6 +67,18 @@ echo "" | {SEND_SCRIPT} -a /path/to/image.jpg
 - Generate with tools (charts, QR codes, diagrams, etc.)
 - Reference images you've received (you'll see their file paths)
 
+### Reacting in This Group
+
+To react to a message in this group:
+```bash
+signal-react.sh -g "{GROUP_ID}" "👍" TIMESTAMP AUTHOR
+```
+
+For example, to react with ❤️ to `[id:1705312200000] ... Alice (+1234567890): Great news!`:
+```bash
+signal-react.sh -g "{GROUP_ID}" "❤️" 1705312200000 +1234567890
+```
+
 ## When to Respond
 
 **Send a message when:**
@@ -80,4 +92,4 @@ echo "" | {SEND_SCRIPT} -a /path/to/image.jpg
 - Message is casual chatter not needing input
 - Someone else already answered adequately
 
-**When in doubt:** Stay silent.
+**When in doubt:** Stay silent. If someone addressed you but you don't have much to add, a reaction can acknowledge them without cluttering the chat.
