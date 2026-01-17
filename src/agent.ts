@@ -258,6 +258,28 @@ export class ChatAgent {
       }
     }
 
+    // PostToolUse hook for DM mode - warn about double-sending when using signal-send.sh
+    const dmSendWarningHook: HookCallback = async (input) => {
+      // Only trigger for PostToolUse events with Bash tool calls that use the send script
+      if (!('tool_name' in input) || input.tool_name !== 'Bash') {
+        return {}
+      }
+      const command = ((input as { tool_input?: { command?: string } }).tool_input?.command) ?? ''
+      if (!command.includes('signal-send.sh')) {
+        return {}
+      }
+
+      return {
+        hookSpecificOutput: {
+          hookEventName: 'PostToolUse' as const,
+          additionalContext:
+            '⚠️ IMPORTANT: You just sent a message using signal-send.sh. In DM mode, your final text response ' +
+            'is ALSO automatically sent to the user. If you don\'t intend to send TWO messages, you should end ' +
+            'your turn immediately without any additional text output. End on a tool call (like this one) to avoid double-sending.',
+        },
+      }
+    }
+
     // Load MCP servers from config
     const mcpServers = getMcpServers()
     const hasMcpServers = Object.keys(mcpServers).length > 0
@@ -273,9 +295,12 @@ export class ChatAgent {
       allowDangerouslySkipPermissions: true,
       // Resume existing session if available
       ...(this._sessionId ? { resume: this._sessionId } : {}),
-      // Add UserPromptSubmit hook for reminders (group mode gets send reminder + reactions, DM mode gets just reactions)
+      // Add hooks for reminders
+      // - UserPromptSubmit: group mode gets send reminder + reactions, DM mode gets just reactions
+      // - PostToolUse: DM mode gets warning about double-sending when using signal-send.sh
       hooks: {
         UserPromptSubmit: [{ hooks: [isGroupBehavior ? groupModePromptHook : dmModePromptHook] }],
+        ...(isGroupBehavior ? {} : { PostToolUse: [{ hooks: [dmSendWarningHook] }] }),
       },
       // Add MCP servers if configured
       ...(hasMcpServers ? { mcpServers } : {}),
