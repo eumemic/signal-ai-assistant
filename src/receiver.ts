@@ -44,6 +44,24 @@ export interface SignalQuote {
 }
 
 /**
+ * Mention data from signal-cli JSON output.
+ * Signal encodes @mentions as a Unicode replacement character (U+FFFC) in the message text,
+ * with this array providing the actual mention data.
+ */
+export interface SignalMention {
+  /** Display name or UUID of the mentioned user */
+  name: string
+  /** Phone number if available */
+  number: string | null
+  /** UUID of the mentioned user */
+  uuid: string
+  /** Character position in the message text where the placeholder appears */
+  start: number
+  /** Length of the placeholder (always 1 for the U+FFFC character) */
+  length: number
+}
+
+/**
  * Data message content from signal-cli.
  */
 export interface SignalDataMessage {
@@ -52,6 +70,7 @@ export interface SignalDataMessage {
   attachments?: SignalAttachment[]
   reaction?: SignalReaction
   quote?: SignalQuote
+  mentions?: SignalMention[]
 }
 
 /**
@@ -114,6 +133,37 @@ export interface ParsedReactionMessage extends ParsedMessageBase {
 }
 
 export type ParsedMessage = ParsedTextMessage | ParsedReactionMessage
+
+/**
+ * Unicode Object Replacement Character used by Signal to represent @-mentions in text.
+ */
+const MENTION_PLACEHOLDER = '\uFFFC'
+
+/**
+ * Substitutes mention placeholder characters (U+FFFC) with readable @Name format.
+ * Mentions must be processed in reverse order of position to preserve indices.
+ */
+function substituteMentions(text: string, mentions: SignalMention[]): string {
+  if (!mentions || mentions.length === 0) {
+    return text
+  }
+
+  // Sort mentions by start position descending (process from end to preserve indices)
+  const sortedMentions = [...mentions].sort((a, b) => b.start - a.start)
+
+  let result = text
+  for (const mention of sortedMentions) {
+    // Verify the placeholder is at the expected position
+    if (result.charAt(mention.start) === MENTION_PLACEHOLDER) {
+      // Use the display name, falling back to phone number or UUID
+      const displayName = mention.name || mention.number || mention.uuid
+      const mentionText = `@${displayName}`
+      result = result.slice(0, mention.start) + mentionText + result.slice(mention.start + mention.length)
+    }
+  }
+
+  return result
+}
 
 /**
  * Parses a signal-cli envelope into a structured message.
@@ -179,10 +229,16 @@ export function parseSignalMessage(envelope: SignalEnvelope): ParsedMessage | nu
         }
       : undefined
 
+    // Substitute mention placeholders with @Name format
+    const rawText = dataMessage.message ?? ''
+    const text = dataMessage.mentions
+      ? substituteMentions(rawText, dataMessage.mentions)
+      : rawText
+
     return {
       ...base,
       type: 'text' as const,
-      text: dataMessage.message ?? '',
+      text,
       ...(hasAttachments && { attachments: dataMessage.attachments }),
       ...(quote && { quote }),
     }
