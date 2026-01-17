@@ -453,8 +453,10 @@ export function createOrchestrator(): Orchestrator {
       // (default is on-start, which delivers messages before TCP client connects, losing them)
       args.push('-a', agentPhoneNumber, '-o', 'json', 'daemon', '--tcp', `localhost:${DAEMON_PORT}`, '--receive-mode=on-connection')
 
-      console.log(`[daemon] Starting signal-cli daemon: signal-cli ${args.join(' ')}`)
-      daemonProcess = spawn('signal-cli', args, {
+      // Use full path to signal-cli (not in PATH to discourage agent from using it directly)
+      const signalCliBin = '/opt/signal-cli-0.13.22/bin/signal-cli'
+      console.log(`[daemon] Starting signal-cli daemon: ${signalCliBin} ${args.join(' ')}`)
+      daemonProcess = spawn(signalCliBin, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: false,
       })

@@ -199,7 +199,9 @@ export function createReceiver(options: ReceiverOptions): ReceiverHandle {
   }
   args.push('-a', agentPhoneNumber, '-o', 'json', 'receive', '-t', '-1')
 
-  const proc = spawn('signal-cli', args, { stdio: ['ignore', 'pipe', 'pipe'] })
+  // Use full path to signal-cli (not in PATH to discourage agent from using it directly)
+  const signalCliBin = '/opt/signal-cli-0.13.22/bin/signal-cli'
+  const proc = spawn(signalCliBin, args, { stdio: ['ignore', 'pipe', 'pipe'] })
 
   let buffer = ''
 

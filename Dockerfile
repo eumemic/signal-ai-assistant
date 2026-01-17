@@ -16,13 +16,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends temurin-21-jre \
     && rm -rf /var/lib/apt/lists/*
 
-# Install signal-cli
+# Install signal-cli (in /opt only, no symlink to keep it hidden from agent)
 ARG SIGNAL_CLI_VERSION=0.13.22
 RUN curl -L -o /tmp/signal-cli.tar.gz \
     "https://github.com/AsamK/signal-cli/releases/download/v${SIGNAL_CLI_VERSION}/signal-cli-${SIGNAL_CLI_VERSION}.tar.gz" \
     && tar xf /tmp/signal-cli.tar.gz -C /opt \
-    && ln -s /opt/signal-cli-${SIGNAL_CLI_VERSION}/bin/signal-cli /usr/local/bin/signal-cli \
     && rm /tmp/signal-cli.tar.gz
+# Note: signal-cli is at /opt/signal-cli-${SIGNAL_CLI_VERSION}/bin/signal-cli
+# No symlink created - agent should use signal-send.sh and signal-react.sh instead
 
 # Patch ARM64 native library if building for ARM64
 # signal-cli bundles x86_64-only native libs; we replace with ARM64 builds from exquo/signal-libs-build
@@ -63,5 +64,8 @@ COPY --chown=jarvis:jarvis scripts/ ./scripts/
 
 # Switch to non-root user
 USER jarvis
+
+# Add scripts to PATH so agent can use simple command names
+ENV PATH="/home/jarvis/scripts:$PATH"
 
 CMD ["node", "dist/main.js"]

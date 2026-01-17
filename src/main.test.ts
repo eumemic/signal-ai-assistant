@@ -172,7 +172,7 @@ describe('Orchestrator', () => {
 
       // Verify daemon was spawned with correct arguments (daemon mode with TCP and on-connection receive mode)
       expect(spawn).toHaveBeenCalledWith(
-        'signal-cli',
+        '/opt/signal-cli-0.13.22/bin/signal-cli',
         ['-c', '/mock/signal-cli-config', '-a', '+1555000000', '-o', 'json', 'daemon', '--tcp', 'localhost:7583', '--receive-mode=on-connection'],
         expect.objectContaining({
           stdio: ['ignore', 'pipe', 'pipe'],

@@ -58,8 +58,10 @@ export function createGroupCache(agentPhoneNumber: string, signalCliConfig?: str
       }
       args.push('-a', agentPhoneNumber, '-o', 'json', 'listGroups', '-d')
 
+      // Use full path to signal-cli (not in PATH to discourage agent from using it directly)
+      const signalCliBin = '/opt/signal-cli-0.13.22/bin/signal-cli'
       execFile(
-        'signal-cli',
+        signalCliBin,
         args,
         { encoding: 'utf8' },
         (error, stdout) => {
