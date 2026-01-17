@@ -34,7 +34,7 @@ describe("env", () => {
     const { getEnv } = await import("./env");
     const env = getEnv();
 
-    expect(env.anthropicModel).toBe("claude-haiku-4-5");
+    expect(env.anthropicModel).toBe("claude-sonnet-4-5");
   });
 
   it("allows overriding anthropicModel via ANTHROPIC_MODEL", async () => {

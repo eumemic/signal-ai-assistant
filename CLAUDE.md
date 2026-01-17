@@ -65,11 +65,11 @@ The REST API runs in Docker and handles Signal protocol encryption/decryption.
 Required in `.env`:
 - `AGENT_NAME` - Display name for the bot
 - `AGENT_PHONE_NUMBER` - Phone number registered with Signal (E.164 format: +1234567890)
-- `OPENAI_API_KEY` - OpenAI API key
+- `ANTHROPIC_API_KEY` - Anthropic API key
 
 Optional:
 - `SIGNAL_CLI_REST_API_URL` - defaults to `http://localhost:8080`
-- `OPENAI_MODEL` - defaults to `gpt-5.2`
+- `ANTHROPIC_MODEL` - defaults to `claude-sonnet-4-5`
 
 ## Signal Registration
 
