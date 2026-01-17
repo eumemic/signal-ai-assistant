@@ -19,6 +19,10 @@ services:
       # MCP server credentials (optional, used by data/mcp.json)
       - IMGFLIP_USERNAME
       - IMGFLIP_PASSWORD
+      - TWITTER_API_KEY
+      - TWITTER_API_SECRET
+      - TWITTER_ACCESS_TOKEN
+      - TWITTER_ACCESS_SECRET
 
 volumes:
   jarvis-workspace:
