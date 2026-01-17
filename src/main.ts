@@ -77,6 +77,27 @@ export function createOrchestrator(): Orchestrator {
   let tcpClient: net.Socket | null = null
 
   /**
+   * Fetches group member list from the daemon via listGroups RPC.
+   * Returns array of member identifiers (phone numbers or UUIDs).
+   */
+  async function fetchGroupMembers(groupId: string): Promise<string[]> {
+    try {
+      const result = await sendRpcRequest('listGroups') as Array<{
+        id: string
+        members?: Array<{ number?: string; uuid?: string }>
+      }>
+
+      const group = result.find(g => g.id === groupId)
+      if (!group || !group.members) return []
+
+      return group.members.map(m => m.number || m.uuid || 'unknown')
+    } catch (error) {
+      console.error(`[orchestrator] Failed to fetch group members for ${groupId}:`, error)
+      return []
+    }
+  }
+
+  /**
    * Sends a JSON-RPC request to the daemon and waits for response.
    */
   async function sendRpcRequest(method: string, params?: Record<string, unknown>): Promise<unknown> {
@@ -194,11 +215,14 @@ export function createOrchestrator(): Orchestrator {
     } else {
       // Resolve group name if not provided
       const groupName = metadata.groupName || (await groupCache.getNameWithRefresh(chatId))
+      // Fetch group members for the system prompt
+      const groupMembers = await fetchGroupMembers(chatId)
       config = {
         chatId,
         type: 'group',
         groupId: metadata.groupId || chatId,
         groupName,
+        groupMembers,
         agentPhoneNumber,
         anthropicModel,
         existingSessionId: existingSession?.sessionId,

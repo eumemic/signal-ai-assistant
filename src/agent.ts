@@ -72,6 +72,8 @@ export interface GroupAgentConfig extends AgentOptions {
   type: 'group'
   groupId: string
   groupName?: string
+  /** List of group member identifiers (phone numbers or UUIDs) */
+  groupMembers?: string[]
   existingSessionId?: string
 }
 
@@ -161,14 +163,19 @@ export class ChatAgent {
       })
     }
 
-    const { groupName, groupId } = this.config
+    const { groupName, groupId, groupMembers } = this.config
     // Send script targets the group with -g flag
     const sendScript = `${sendScriptPath} -g "${groupId}"`
     console.log(`[agent:${this.chatId}] Using GROUP prompt`)
+    // Format members list, or use placeholder if not available
+    const membersText = groupMembers && groupMembers.length > 0
+      ? groupMembers.join(', ')
+      : 'unknown'
     return loadPrompt('group', {
       AGENT_PHONE_NUMBER: agentPhoneNumber,
       GROUP_NAME: groupName || groupId,
       GROUP_ID: groupId,
+      GROUP_MEMBERS: membersText,
       SEND_SCRIPT: sendScript,
     })
   }

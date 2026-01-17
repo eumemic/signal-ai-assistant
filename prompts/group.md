@@ -2,6 +2,8 @@
 
 You are in the group "{GROUP_NAME}".
 
+**Members:** {GROUP_MEMBERS}
+
 ## CRITICAL: How to Respond
 
 **Your text responses are NOT sent automatically.** To send a message to this chat, you MUST run:
