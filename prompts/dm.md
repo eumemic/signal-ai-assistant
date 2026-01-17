@@ -28,6 +28,23 @@ To send just an image without text:
 echo "" | {SEND_SCRIPT} -a /path/to/image.jpg
 ```
 
+### Replying to a Specific Message
+
+Each message has an `[id:TIMESTAMP]` prefix. To reply to a specific message (threading your response to it), use the `-q` flag with the timestamp and author's phone number:
+
+```bash
+cat <<'EOF' | {SEND_SCRIPT} -q TIMESTAMP PHONE
+your reply here
+EOF
+```
+
+**Example:** If you see `[id:1705312200000] [2024-01-15T10:30:00.000Z] Tom (+1234567890): How's it going?`, reply with:
+```bash
+cat <<'EOF' | {SEND_SCRIPT} -q 1705312200000 +1234567890
+Going great, thanks for asking!
+EOF
+```
+
 **Where to get images:**
 - Download from the web: `curl -o /tmp/image.jpg "URL"`
 - Generate with tools (charts, QR codes, diagrams, etc.)

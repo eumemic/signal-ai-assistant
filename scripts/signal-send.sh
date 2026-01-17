@@ -46,6 +46,12 @@ while [ $# -gt 0 ]; do
             shift 2
             ;;
         -q)
+            if [ -z "$2" ] || [ -z "$3" ]; then
+                echo "Error: -q requires two arguments: TIMESTAMP and AUTHOR" >&2
+                echo "Usage: -q TIMESTAMP AUTHOR" >&2
+                echo "Example: -q 1705312200000 +1234567890" >&2
+                exit 1
+            fi
             QUOTE_TIMESTAMP="$2"
             QUOTE_AUTHOR="$3"
             shift 3
@@ -60,6 +66,14 @@ while [ $# -gt 0 ]; do
             ;;
     esac
 done
+
+# Validate that we have either a recipient or group
+if [ -z "$RECIPIENT" ] && [ -z "$GROUP_ID" ]; then
+    echo "Error: Must specify either a RECIPIENT or -g GROUP_ID" >&2
+    echo "Usage: echo \"message\" | signal-send.sh [OPTIONS] RECIPIENT" >&2
+    echo "       echo \"message\" | signal-send.sh -g GROUP_ID [OPTIONS]" >&2
+    exit 1
+fi
 
 # Read message from stdin - this avoids all shell escaping issues
 MESSAGE=$(cat)
